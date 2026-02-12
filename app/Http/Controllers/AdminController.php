@@ -399,11 +399,11 @@ class AdminController extends Controller
     }
 
     /**
-     * Get expenses from backend API
+     * Get expenses from backend API via HotelApiService (same HTTP client as revenue).
+     * This works on deployed app (App Platform) where raw curl may fail.
      */
     private function getExpenses($startDate, $endDate)
     {
-        $backendUrl = env('BACKEND_API_URL', 'https://whale-app-wcsre.ondigitalocean.app/api/v1');
         $totalExpenses = 0;
         $breakdown = [
             'grn' => 0,
@@ -411,53 +411,45 @@ class AdminController extends Controller
             'salaries' => 0,
             'other' => 0
         ];
-        
+
         try {
-            // Format dates for API
-            $startDateStr = $startDate->format('Y-m-d');
-            $endDateStr = $endDate->format('Y-m-d');
-            
-            // Get all expenses for the date range
-            $url = $backendUrl . '/expenses/date-range?startDate=' . $startDateStr . '&endDate=' . $endDateStr;
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-            
-            if ($httpCode === 200 && $response) {
-                $expenses = json_decode($response, true);
-                if (is_array($expenses)) {
-                    foreach ($expenses as $expense) {
-                        $amount = isset($expense['amount']) ? (float) $expense['amount'] : 0;
-                        $type = isset($expense['expenseType']) ? strtoupper($expense['expenseType']) : 'OTHER';
-                        
-                        $totalExpenses += $amount;
-                        
-                        // Categorize by type
-                        switch ($type) {
-                            case 'GRN':
-                                $breakdown['grn'] += $amount;
-                                break;
-                            case 'STAFF_MEAL':
-                                $breakdown['staff_meals'] += $amount;
-                                break;
-                            case 'SALARY':
-                                $breakdown['salaries'] += $amount;
-                                break;
-                            default:
-                                $breakdown['other'] += $amount;
-                                break;
-                        }
-                    }
+            $expenses = $this->apiService->getExpensesByDateRange($startDate, $endDate);
+            if (!is_array($expenses)) {
+                return [
+                    'total' => 0,
+                    'breakdown' => [
+                        'grn' => 0,
+                        'staff_meals' => 0,
+                        'salaries' => 0,
+                        'other' => 0
+                    ]
+                ];
+            }
+            foreach ($expenses as $expense) {
+                $amount = isset($expense['amount']) ? (float) $expense['amount'] : 0;
+                $type = isset($expense['expenseType']) ? strtoupper((string) $expense['expenseType']) : 'OTHER';
+
+                $totalExpenses += $amount;
+
+                switch ($type) {
+                    case 'GRN':
+                        $breakdown['grn'] += $amount;
+                        break;
+                    case 'STAFF_MEAL':
+                        $breakdown['staff_meals'] += $amount;
+                        break;
+                    case 'SALARY':
+                        $breakdown['salaries'] += $amount;
+                        break;
+                    default:
+                        $breakdown['other'] += $amount;
+                        break;
                 }
             }
         } catch (\Exception $e) {
-            // Silently fail - expenses are optional
-            \Log::warning('Could not fetch expenses from backend API: ' . $e->getMessage());
+            Log::warning('Could not fetch expenses from backend API: ' . $e->getMessage());
         }
-        
+
         return [
             'total' => round($totalExpenses, 2),
             'breakdown' => [

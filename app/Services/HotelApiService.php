@@ -300,6 +300,21 @@ class HotelApiService
         return $result['success'] ? ($result['data'] ?? []) : [];
     }
 
+    /**
+     * Get expenses for a date range from the backend (for dashboard when no local DB).
+     * Uses the same HTTP client as other API calls so it works on App Platform.
+     */
+    public function getExpensesByDateRange($startDate, $endDate)
+    {
+        $startStr = $startDate->format('Y-m-d');
+        $endStr = $endDate->format('Y-m-d');
+        $result = $this->makeRequest('GET', '/expenses/date-range', [
+            'startDate' => $startStr,
+            'endDate' => $endStr,
+        ]);
+        return $result['success'] ? ($result['data'] ?? []) : [];
+    }
+
     // ==================== GUESTS ====================
 
     /**
