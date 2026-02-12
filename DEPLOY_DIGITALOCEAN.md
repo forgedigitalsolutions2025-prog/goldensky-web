@@ -26,11 +26,12 @@ App Platform runs the app for you: build from GitHub/GitLab, automatic HTTPS, no
 5. Add **Environment Variables** (click **Edit** next to “Environment Variables” and add at least):
    - `APP_ENV` = `production`
    - `APP_DEBUG` = `false`
-   - `APP_URL` = `https://your-app-xxxxx.ondigitalocean.app` (replace with your app URL after first deploy, or your Hostinger domain once DNS is set)
+   - `APP_URL` = `https://your-app-xxxxx.ondigitalocean.app` (replace with your app URL after first deploy, or your Hostinger domain once DNS is set, e.g. `https://www.goldenskyhotelandwellness.com`)
    - `APP_KEY` = (run `php artisan key:generate --show` locally and paste the value)
    - `ADMIN_PASSWORD` = (choose a strong password for admin login; required in production)
    - `BACKEND_API_URL` = (your backend API base URL, e.g. `https://whale-app-wcsre.ondigitalocean.app/api/v1`)
    - `SESSION_DRIVER` = `file` (so the app does not require MySQL for sessions; otherwise you get "Connection refused" to mysql when loading the site)
+   - `SESSION_DOMAIN` = (optional; for custom domain set to `.yourdomain.com` to avoid 419 on admin login, e.g. `.goldenskyhotelandwellness.com`)
    Add `API_BASE_URL`, `GOOGLE_*`, mail vars, etc. if you use them.
 
 6. You do **not** need to add a DigitalOcean database if the app uses only the external backend API.
@@ -52,6 +53,25 @@ App Platform runs the app for you: build from GitHub/GitLab, automatic HTTPS, no
    - **APP_URL** wrong → set it to your exact app URL (e.g. `https://kton-app-da23b.ondigitalocean.app`) and redeploy.
    - Storage/cache not writable → ensure the build command creates `storage/framework/sessions`, `storage/framework/views`, `storage/logs`, and `bootstrap/cache` (see build command above).
    - **"No such file or directory" for sessions** → add `mkdir -p storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && chmod -R 775 storage bootstrap/cache` to your build command, then redeploy.
+
+### If you see "419 Page Expired" on admin login (custom domain)
+
+This usually happens when the session cookie or CSRF token doesn’t match the request (e.g. wrong host or scheme behind a proxy). Do the following:
+
+1. **Set `APP_URL` to your live URL**  
+   In Environment Variables set:
+   - `APP_URL` = `https://www.goldenskyhotelandwellness.com` (use your exact domain with `https://` and `www` if that’s what users use).
+
+2. **Optional but recommended for custom domain: set session domain**  
+   So the session cookie is valid for your domain:
+   - `SESSION_DOMAIN` = `.goldenskyhotelandwellness.com` (leading dot so it works for both `www` and non-www).
+
+3. **Trust proxies (already in code)**  
+   The app’s `TrustProxies` middleware is set to trust all proxies so Laravel uses `X-Forwarded-Host` and `X-Forwarded-Proto` from DigitalOcean’s load balancer. No env var needed.
+
+4. **Redeploy** after changing env vars so the new values are used.
+
+If 419 persists, temporarily set `APP_DEBUG=true`, reproduce the login, and check the Laravel log or error page for session/CSRF errors.
 
 ### 3. Use your Hostinger domain
 
