@@ -1,0 +1,152 @@
+# Deploying to DigitalOcean with a Hostinger domain
+
+You have a domain from Hostinger and want to host the Laravel web app on DigitalOcean. Below are two common options and how to connect your domain.
+
+---
+
+## Option A: DigitalOcean App Platform (easiest)
+
+App Platform runs the app for you: build from GitHub/GitLab, automatic HTTPS, no server admin.
+
+### 1. Push your code
+
+- Push the **Web application** folder (or the repo that contains it) to GitHub or GitLab.
+- Ensure the **root** of the repo (or the branch you use) has `composer.json`, `artisan`, and the `public/` folder at the expected paths. If your Laravel app lives in a subfolder (e.g. `Web application/`), configure that subfolder as the **Source Directory** in App Platform.
+
+### 2. Create an app in DigitalOcean
+
+1. In [DigitalOcean](https://cloud.digitalocean.com/) go to **Apps** → **Create App**.
+2. Connect your GitHub/GitLab and select the repo (and branch).
+3. Set **Source Directory** to the folder that contains `composer.json` (e.g. `Web application` if the app is in a subfolder).
+4. App Platform will detect PHP/Laravel. Set:
+   - **Run Command:** `php artisan serve --host=0.0.0.0 --port=8080`  
+     (or use a proper PHP/Nginx component if you add a custom component.)
+   - **HTTP Port:** `8080` (if using `artisan serve`).
+
+   For a more typical production setup, use a **Droplet** (Option B) or a custom **Dockerfile** / **Nginx + PHP** component in App Platform so the document root is `public/` and you run PHP-FPM.
+
+5. Add **Environment Variables** (same as `.env`):
+   - `APP_ENV=production`
+   - `APP_DEBUG=false`
+   - `APP_URL=https://your-domain.com` (use your Hostinger domain)
+   - `APP_KEY` (generate with `php artisan key:generate` locally and paste)
+   - `ADMIN_PASSWORD`, `DB_*`, `API_BASE_URL`, `BACKEND_API_URL`, `GOOGLE_*`, mail vars, etc.
+
+6. Add a **Database** (Managed MySQL/Postgres) in the same app if the Laravel app needs a DB, or use an external DB and set `DB_*` in env.
+
+7. Deploy. You’ll get a URL like `https://your-app-xxxxx.ondigitalocean.app`.
+
+### 3. Use your Hostinger domain
+
+1. In DigitalOcean App Platform: open your app → **Settings** → **Domains** → **Add Domain** → enter your domain (e.g. `goldenskyhotel.com` or `www.goldenskyhotel.com`). DO will show the **CNAME target** (e.g. `your-app-xxxxx.ondigitalocean.app`).
+2. In **Hostinger**: go to **Domains** → your domain → **DNS / Name Servers** (or **Manage DNS**).
+3. Add a **CNAME** record:
+   - **Name:** `www` (for `www.yourdomain.com`) or `@` if your host supports CNAME for root (many use an A record instead).
+   - **Target:** the CNAME target from DigitalOcean (e.g. `your-app-xxxxx.ondigitalocean.app`).
+4. For the **root** domain (`yourdomain.com` without www), Hostinger often uses an **A** record. In that case, in DigitalOcean get the **IP** of your app (if App Platform exposes one) or use a **redirect** from root to `www`. Alternatively, use Hostinger’s “Redirect” or “Point to IP” and use the IP App Platform gives you (if any). App Platform’s “Add Domain” flow usually tells you exactly what to add.
+5. Wait for DNS (5–60 minutes). App Platform will issue HTTPS for your domain once DNS points to DO.
+
+Set `APP_URL` and `GOOGLE_REDIRECT_URI` to `https://your-domain.com` (or `https://www.your-domain.com`) so the app and Google login work correctly.
+
+---
+
+## Option B: DigitalOcean Droplet (VPS)
+
+You get a Linux server; you install Nginx, PHP, Composer, and run Laravel yourself. Full control and document root = `public/`.
+
+### 1. Create a Droplet
+
+- **Image:** Ubuntu 22.04.
+- **Plan:** Basic Shared CPU (e.g. $6/mo) is enough to start.
+- **Datacenter:** Choose one close to your users.
+- Add your SSH key.
+
+### 2. Point Hostinger domain to the Droplet
+
+1. In DigitalOcean: get the **Droplet’s public IP**.
+2. In Hostinger DNS for your domain:
+   - **A record:** Name `@`, Value = Droplet IP (for `yourdomain.com`).
+   - **A record:** Name `www`, Value = Droplet IP (for `www.yourdomain.com`), or use a CNAME to `yourdomain.com` if you prefer.
+
+### 3. Set up the server (Ubuntu)
+
+SSH into the Droplet, then:
+
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y nginx php8.2-fpm php8.2-mysql php8.2-xml php8.2-mbstring php8.2-curl php8.2-zip unzip
+php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && sudo php composer-setup.php --install-dir=/usr/local/bin --filename=composer
+```
+
+### 4. Deploy the app
+
+- Clone your repo (or upload files) to e.g. `/var/www/goldensky`.
+- Put the Laravel app so that `composer.json` and `public/` are inside `/var/www/goldensky` (e.g. if the repo has a “Web application” folder, clone into `/var/www/goldensky` and use that folder as the app root, or clone the whole repo and set the app root to `repo/Web application`).
+
+```bash
+cd /var/www/goldensky
+cp .env.production.example .env
+nano .env   # set APP_URL=https://your-domain.com, ADMIN_PASSWORD, DB_*, API_*, etc.
+php artisan key:generate
+composer install --no-dev --optimize-autoloader
+php artisan config:cache && php artisan route:cache && php artisan view:cache
+php artisan storage:link
+php artisan migrate --force
+sudo chown -R www-data:www-data storage bootstrap/cache
+sudo chmod -R 775 storage bootstrap/cache
+```
+
+### 5. Nginx site for Laravel
+
+Create a vhost, e.g. `/etc/nginx/sites-available/goldensky`:
+
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com www.yourdomain.com;
+    root /var/www/goldensky/public;
+    index index.php;
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+```
+
+Then:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/goldensky /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### 6. HTTPS with Let’s Encrypt (Certbot)
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+```
+
+Follow the prompts. Certbot will configure HTTPS and redirect HTTP → HTTPS.
+
+After that, set in `.env`:
+
+- `APP_URL=https://yourdomain.com`
+- `SESSION_SECURE_COOKIE=true` (optional; your app already treats https as secure when `APP_URL` is https)
+
+---
+
+## Checklist (either option)
+
+- [ ] Domain DNS at Hostinger points to DigitalOcean (CNAME for App Platform, A for Droplet).
+- [ ] `APP_URL` and `GOOGLE_REDIRECT_URI` use your real domain with `https://`.
+- [ ] `ADMIN_PASSWORD` set in production env.
+- [ ] `APP_DEBUG=false`, `APP_ENV=production`.
+- [ ] Database (if used) reachable and `DB_*` set.
+- [ ] `API_BASE_URL` / `BACKEND_API_URL` point to your backend (e.g. existing whale-app or another DO service).
+
+Once DNS has propagated and env is correct, the web app is ready to use at your Hostinger domain on DigitalOcean.
