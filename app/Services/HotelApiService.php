@@ -315,6 +315,24 @@ class HotelApiService
         return $result['success'] ? ($result['data'] ?? []) : [];
     }
 
+    /**
+     * Get all inventory requests from the backend (Owner's Portal).
+     */
+    public function getInventoryRequests()
+    {
+        $result = $this->makeRequest('GET', '/inventory-requests');
+        return $result['success'] && is_array($result['data'] ?? null) ? $result['data'] : [];
+    }
+
+    /**
+     * Get pending inventory requests from the backend (Owner's Portal).
+     */
+    public function getPendingInventoryRequests()
+    {
+        $result = $this->makeRequest('GET', '/inventory-requests/pending');
+        return $result['success'] && is_array($result['data'] ?? null) ? $result['data'] : [];
+    }
+
     // ==================== GUESTS ====================
 
     /**

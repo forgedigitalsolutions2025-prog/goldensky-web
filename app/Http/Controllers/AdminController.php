@@ -633,24 +633,17 @@ class AdminController extends Controller
             return redirect()->route('admin.login');
         }
 
-        $backendUrl = env('BACKEND_API_URL', 'https://whale-app-wcsre.ondigitalocean.app/api/v1');
         $pendingRequests = [];
         $allRequests = [];
 
         try {
-            $pendingResponse = Http::timeout(15)->get($backendUrl . '/inventory-requests/pending');
-            if ($pendingResponse->successful() && is_array($pendingResponse->json())) {
-                $pendingRequests = $this->normalizeInventoryRequests($pendingResponse->json());
-            }
+            $pendingRequests = $this->normalizeInventoryRequests($this->apiService->getPendingInventoryRequests());
         } catch (\Exception $e) {
             Log::warning('Failed to fetch pending inventory requests', ['error' => $e->getMessage()]);
         }
 
         try {
-            $allResponse = Http::timeout(15)->get($backendUrl . '/inventory-requests');
-            if ($allResponse->successful() && is_array($allResponse->json())) {
-                $allRequests = $this->normalizeInventoryRequests($allResponse->json());
-            }
+            $allRequests = $this->normalizeInventoryRequests($this->apiService->getInventoryRequests());
         } catch (\Exception $e) {
             Log::warning('Failed to fetch all inventory requests', ['error' => $e->getMessage()]);
         }
