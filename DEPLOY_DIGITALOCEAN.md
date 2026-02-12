@@ -17,24 +17,41 @@ App Platform runs the app for you: build from GitHub/GitLab, automatic HTTPS, no
 
 1. In [DigitalOcean](https://cloud.digitalocean.com/) go to **Apps** → **Create App**.
 2. Connect your GitHub/GitLab and select the repo (and branch).
-3. Set **Source Directory** to the folder that contains `composer.json` (e.g. `Web application` if the app is in a subfolder).
-4. App Platform will detect PHP/Laravel. Set:
-   - **Run Command:** `php artisan serve --host=0.0.0.0 --port=8080`  
-     (or use a proper PHP/Nginx component if you add a custom component.)
-   - **HTTP Port:** `8080` (if using `artisan serve`).
+3. Set **Source Directory** to the folder that contains `composer.json` (leave blank if the repo root is the Laravel app).
+4. App Platform will detect PHP. Keep or set:
+   - **Build command:** `composer install --no-dev --optimize-autoloader`
+   - **Run command:** `heroku-php-apache2 public/` (default when PHP is detected; serves Laravel’s `public/` correctly)
+   - **HTTP Port:** `8080`
 
-   For a more typical production setup, use a **Droplet** (Option B) or a custom **Dockerfile** / **Nginx + PHP** component in App Platform so the document root is `public/` and you run PHP-FPM.
+5. Add **Environment Variables** (click **Edit** next to “Environment Variables” and add at least):
+   - `APP_ENV` = `production`
+   - `APP_DEBUG` = `false`
+   - `APP_URL` = `https://your-app-xxxxx.ondigitalocean.app` (replace with your app URL after first deploy, or your Hostinger domain once DNS is set)
+   - `APP_KEY` = (run `php artisan key:generate --show` locally and paste the value)
+   - `ADMIN_PASSWORD` = (choose a strong password for admin login; required in production)
+   - `BACKEND_API_URL` = (your backend API base URL, e.g. `https://whale-app-wcsre.ondigitalocean.app/api/v1`)
+   - `SESSION_DRIVER` = `file` (so the app does not require MySQL for sessions; otherwise you get "Connection refused" to mysql when loading the site)
+   Add `API_BASE_URL`, `GOOGLE_*`, mail vars, etc. if you use them.
 
-5. Add **Environment Variables** (same as `.env`):
-   - `APP_ENV=production`
-   - `APP_DEBUG=false`
-   - `APP_URL=https://your-domain.com` (use your Hostinger domain)
-   - `APP_KEY` (generate with `php artisan key:generate` locally and paste)
-   - `ADMIN_PASSWORD`, `DB_*`, `API_BASE_URL`, `BACKEND_API_URL`, `GOOGLE_*`, mail vars, etc.
+6. You do **not** need to add a DigitalOcean database if the app uses only the external backend API.
 
-6. Add a **Database** (Managed MySQL/Postgres) in the same app if the Laravel app needs a DB, or use an external DB and set `DB_*` in env.
+7. Click **Create app**. You’ll get a URL like `https://your-app-xxxxx.ondigitalocean.app`. After the first deploy, set `APP_URL` to that URL (or to your Hostinger domain once DNS is connected).
 
-7. Deploy. You’ll get a URL like `https://your-app-xxxxx.ondigitalocean.app`.
+**Build command (required)** — install deps, create writable storage dirs, then cache:
+
+`composer install --no-dev --optimize-autoloader && mkdir -p storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && chmod -R 775 storage bootstrap/cache && php artisan storage:link && php artisan route:cache && php artisan view:cache`
+
+**Important:** Do **not** run `php artisan config:cache` in the build. On App Platform, env vars are injected at runtime; caching config at build time bakes in empty values, so `BACKEND_API_URL` and other env vars are ignored and the dashboard stays empty.
+
+### If you see "500 Internal Server Error"
+
+1. **See the real error:** In the app’s **Environment Variables**, set `APP_DEBUG` = `true`. Save, redeploy (Deploy → Deploy or Force Rebuild), then open the app URL again. Laravel will show the actual error and stack trace. Fix that issue, then set `APP_DEBUG` back to `false` and redeploy.
+2. **Check logs:** In DigitalOcean → your app → **Runtime Logs** (and **Build Logs**) for PHP errors or stack traces.
+3. **Common causes:**
+   - **APP_KEY** missing or wrong → add/correct it and redeploy.
+   - **APP_URL** wrong → set it to your exact app URL (e.g. `https://kton-app-da23b.ondigitalocean.app`) and redeploy.
+   - Storage/cache not writable → ensure the build command creates `storage/framework/sessions`, `storage/framework/views`, `storage/logs`, and `bootstrap/cache` (see build command above).
+   - **"No such file or directory" for sessions** → add `mkdir -p storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && chmod -R 775 storage bootstrap/cache` to your build command, then redeploy.
 
 ### 3. Use your Hostinger domain
 

@@ -181,8 +181,10 @@ class AdminController extends Controller
             Log::warning('getMetricsFromApiOnly: guests', ['error' => $e->getMessage()]);
         }
 
+        $roomRevenue = $this->getRevenueFromApi($startDate, $endDate);
+
         return [
-            'room_revenue' => 0,
+            'room_revenue' => $roomRevenue,
             'total_bookings' => $totalBookings,
             'occupancy_rate' => round($occupancyRate, 1),
             'active_bookings' => $activeBookings,
@@ -357,6 +359,45 @@ class AdminController extends Controller
         ];
     }
     
+    /**
+     * Get total revenue from backend API (payments in date range, LKR, exclude REFUND).
+     * Used when there is no local DB (e.g. App Platform) so dashboard shows accurate revenue.
+     */
+    private function getRevenueFromApi($startDate, $endDate)
+    {
+        try {
+            $payments = $this->apiService->getAllPayments();
+            if (!is_array($payments)) {
+                return 0;
+            }
+            $total = 0;
+            foreach ($payments as $payment) {
+                $type = isset($payment['paymentType']) ? strtoupper((string) $payment['paymentType']) : '';
+                if ($type === 'REFUND') {
+                    continue;
+                }
+                $currency = isset($payment['currency']) ? strtoupper((string) $payment['currency']) : '';
+                if ($currency !== 'LKR') {
+                    continue;
+                }
+                $dateStr = $payment['paymentDate'] ?? null;
+                if (!$dateStr) {
+                    continue;
+                }
+                $paymentDate = Carbon::parse($dateStr);
+                if (!$paymentDate->between($startDate, $endDate)) {
+                    continue;
+                }
+                $amount = isset($payment['amount']) ? (float) $payment['amount'] : 0;
+                $total += $amount;
+            }
+            return round($total, 2);
+        } catch (\Exception $e) {
+            Log::warning('getRevenueFromApi failed', ['error' => $e->getMessage()]);
+            return 0;
+        }
+    }
+
     /**
      * Get expenses from backend API
      */

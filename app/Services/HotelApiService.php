@@ -289,6 +289,17 @@ class HotelApiService
         throw new \Exception($result['error'] ?? 'Failed to delete booking');
     }
 
+    // ==================== PAYMENTS ====================
+
+    /**
+     * Get all payments from the backend (for revenue calculation when no local DB).
+     */
+    public function getAllPayments()
+    {
+        $result = $this->makeRequest('GET', '/payments');
+        return $result['success'] ? ($result['data'] ?? []) : [];
+    }
+
     // ==================== GUESTS ====================
 
     /**
