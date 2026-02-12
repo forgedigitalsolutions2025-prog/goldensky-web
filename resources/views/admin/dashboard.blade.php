@@ -23,16 +23,16 @@
     <!-- Header -->
     <nav class="bg-gradient-to-r from-gold-dark to-gold text-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <h1 class="text-2xl font-bold">Business Analytics Dashboard</h1>
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 py-4 sm:py-0 sm:h-16">
+                <div class="flex items-center min-w-0">
+                    <h1 class="text-lg sm:text-xl md:text-2xl font-bold truncate">Business Analytics Dashboard</h1>
                 </div>
-                <div class="flex items-center space-x-4">
+                <div class="flex flex-wrap items-center gap-2 sm:gap-4">
                     <a href="{{ route('admin.inventory-requests') }}" class="text-white hover:underline text-sm font-medium">Inventory Requests</a>
-                    <span class="text-sm">Admin Panel</span>
+                    <span class="text-sm hidden sm:inline">Admin Panel</span>
                     <form method="POST" action="{{ route('admin.logout') }}" class="inline">
                         @csrf
-                        <button type="submit" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-md text-sm font-medium transition">
+                        <button type="submit" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 sm:px-4 rounded-md text-sm font-medium transition whitespace-nowrap">
                             Logout
                         </button>
                     </form>
@@ -44,9 +44,9 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Period Selector -->
         <div class="mb-6">
-            <form method="GET" action="{{ route('admin.dashboard') }}" class="flex items-center space-x-4">
-                <label class="text-gray-700 font-semibold">Period:</label>
-                <select name="period" onchange="this.form.submit()" class="border-gray-300 rounded-md focus:ring-gold focus:border-gold">
+            <form method="GET" action="{{ route('admin.dashboard') }}" class="flex flex-wrap items-center gap-3 sm:gap-4">
+                <label class="text-gray-700 font-semibold text-sm sm:text-base">Period:</label>
+                <select name="period" onchange="this.form.submit()" class="border-gray-300 rounded-md focus:ring-gold focus:border-gold min-w-0 flex-1 sm:flex-initial max-w-xs">
                     <option value="day" {{ $period == 'day' ? 'selected' : '' }}>Today</option>
                     <option value="week" {{ $period == 'week' ? 'selected' : '' }}>This Week</option>
                     <option value="month" {{ $period == 'month' ? 'selected' : '' }}>This Month</option>

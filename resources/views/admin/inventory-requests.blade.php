@@ -21,15 +21,15 @@
 <body class="bg-gray-100">
     <nav class="bg-gradient-to-r from-gold-dark to-gold text-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center space-x-4">
-                    <a href="{{ route('admin.dashboard') }}" class="text-white hover:underline">← Dashboard</a>
-                    <h1 class="text-2xl font-bold">Inventory Requests (Owner's Portal)</h1>
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 py-4 sm:py-0 sm:h-16">
+                <div class="flex flex-wrap items-center gap-2 sm:gap-4 min-w-0">
+                    <a href="{{ route('admin.dashboard') }}" class="text-white hover:underline text-sm sm:text-base whitespace-nowrap">← Dashboard</a>
+                    <h1 class="text-lg sm:text-xl md:text-2xl font-bold truncate">Inventory Requests (Owner's Portal)</h1>
                 </div>
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center">
                     <form method="POST" action="{{ route('admin.logout') }}" class="inline">
                         @csrf
-                        <button type="submit" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-md text-sm font-medium transition">Logout</button>
+                        <button type="submit" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 sm:px-4 rounded-md text-sm font-medium transition whitespace-nowrap">Logout</button>
                     </form>
                 </div>
             </div>

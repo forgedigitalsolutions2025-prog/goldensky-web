@@ -17,8 +17,8 @@
     </div>
     
     <!-- Login Card -->
-    <div class="relative z-10 max-w-sm w-full mx-4 animate-fade-in-up">
-        <div class="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8">
+    <div class="relative z-10 max-w-sm w-full mx-4 min-w-0 animate-fade-in-up">
+        <div class="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-6 sm:p-8">
             <!-- Header -->
             <div class="text-center mb-8">
                 <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-gold to-gold-dark rounded-full mb-3 shadow-xl">

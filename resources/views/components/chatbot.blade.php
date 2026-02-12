@@ -1,5 +1,5 @@
 <!-- AI Chatbot Widget -->
-<div x-data="chatbot()" class="fixed bottom-6 right-6 z-50">
+<div x-data="chatbot()" class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
     <div class="flex flex-col items-end space-y-4">
         <!-- WhatsApp Button -->
         <a 
@@ -39,7 +39,7 @@
         x-transition:leave="transition ease-in duration-200"
         x-transition:leave-start="opacity-100 transform scale-100 translate-y-0"
         x-transition:leave-end="opacity-0 transform scale-95 translate-y-4"
-        class="absolute bottom-20 right-0 w-96 h-[500px] bg-white rounded-2xl shadow-2xl border-2 border-gold/30 flex flex-col overflow-hidden"
+        class="absolute bottom-20 right-0 w-[calc(100vw-2rem)] max-w-96 h-[85vh] max-h-[500px] bg-white rounded-2xl shadow-2xl border-2 border-gold/30 flex flex-col overflow-hidden"
         style="display: none;"
     >
         <!-- Chat Header -->

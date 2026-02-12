@@ -4,11 +4,11 @@
 
 @section('content')
 <!-- Page Header -->
-<div class="relative h-64 bg-cover bg-center bg-no-repeat" style="background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('{{ asset('images/hotel/04af6130-85c5-4a18-891d-4842c56f6183.JPG') }}');">
+<div class="relative h-48 sm:h-56 md:h-64 bg-cover bg-center bg-no-repeat" style="background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('{{ asset('images/hotel/04af6130-85c5-4a18-891d-4842c56f6183.JPG') }}');">
     <div class="absolute inset-0 flex items-center justify-center">
         <div class="text-center text-white px-4">
-            <h1 class="text-5xl font-bold mb-3 drop-shadow-lg">Complete Your Booking</h1>
-            <p class="text-xl opacity-90">Just a few steps away from your perfect stay</p>
+            <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 md:mb-3 drop-shadow-lg">Complete Your Booking</h1>
+            <p class="text-base sm:text-lg md:text-xl opacity-90">Just a few steps away from your perfect stay</p>
         </div>
     </div>
 </div>
@@ -17,22 +17,22 @@
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Room Summary Card -->
         @if($room)
-            <div class="bg-gradient-to-r from-gold-dark to-gold rounded-2xl shadow-2xl p-8 mb-8 -mt-20 relative z-10">
-                <div class="flex items-center justify-between text-white">
-                    <div>
-                        <h2 class="text-3xl font-bold mb-2">{{ $room->room_type }}</h2>
-                        <p class="text-white/90">Room {{ $room->room_number }} • Max {{ $room->max_occupancy }} Guests</p>
+            <div class="bg-gradient-to-r from-gold-dark to-gold rounded-2xl shadow-2xl p-6 sm:p-8 mb-8 -mt-16 sm:-mt-20 relative z-10">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-white">
+                    <div class="min-w-0">
+                        <h2 class="text-2xl sm:text-3xl font-bold mb-2">{{ $room->room_type }}</h2>
+                        <p class="text-white/90 text-sm sm:text-base">Room {{ $room->room_number }} • Max {{ $room->max_occupancy }} Guests</p>
                     </div>
-                    <div class="text-right">
-                        <div class="text-4xl font-bold" id="price-display">LKR {{ number_format($room->price_per_night, 0) }}</div>
-                        <p class="text-white/80" id="package-display">per night</p>
+                    <div class="text-left sm:text-right flex-shrink-0">
+                        <div class="text-2xl sm:text-3xl md:text-4xl font-bold" id="price-display">LKR {{ number_format($room->price_per_night, 0) }}</div>
+                        <p class="text-white/80 text-sm" id="package-display">per night</p>
                     </div>
                 </div>
             </div>
         @endif
 
         <!-- Main Form Card -->
-        <div class="bg-white rounded-2xl shadow-xl p-10">
+        <div class="bg-white rounded-2xl shadow-xl p-4 sm:p-6 md:p-10">
             @auth
                 <div class="bg-gradient-to-r from-gold/10 to-gold-light/20 border-l-4 border-gold rounded-xl p-5 mb-8 flex items-center space-x-3">
                     <div class="w-12 h-12 bg-gradient-to-br from-gold to-gold-dark rounded-full flex items-center justify-center shadow-lg">

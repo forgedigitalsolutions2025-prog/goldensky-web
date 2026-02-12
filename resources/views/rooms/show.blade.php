@@ -46,13 +46,13 @@
             </div>
             @endif
 
-            <div class="p-8">
-                <div class="flex justify-between items-start mb-4">
-                    <div>
-                        <h1 class="text-3xl font-bold text-gold-dark mb-2">{{ $room->room_type }}</h1>
-                        <p class="text-gray-600">Room Number: {{ $room->room_number }}</p>
+            <div class="p-4 sm:p-6 md:p-8">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+                    <div class="min-w-0">
+                        <h1 class="text-2xl sm:text-3xl font-bold text-gold-dark mb-2">{{ $room->room_type }}</h1>
+                        <p class="text-gray-600 text-sm sm:text-base">Room Number: {{ $room->room_number }}</p>
                     </div>
-                    <span class="bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded">{{ $room->status }}</span>
+                    <span class="bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded self-start">{{ $room->status }}</span>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-6 mb-6">

@@ -4,7 +4,7 @@
 
 @section('content')
 <!-- Hero Section -->
-<div class="relative h-screen overflow-hidden">
+<div class="relative min-h-[70vh] sm:min-h-[80vh] h-screen overflow-hidden">
     <!-- Background Video -->
     <video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover">
         <source src="{{ asset('videos/dawn-sunrise-timelapse.mp4') }}" type="video/mp4">
@@ -280,17 +280,17 @@
             <div class="absolute inset-0 bg-gradient-to-br from-gold-dark to-gold opacity-85"></div>
             
             <!-- Content -->
-            <div class="relative z-10 p-8 md:p-16">
+            <div class="relative z-10 p-4 sm:p-6 md:p-16">
                 <div class="max-w-4xl mx-auto">
                     <!-- Header -->
-                    <div class="text-center mb-10">
-                        <h2 class="text-4xl md:text-5xl font-bold text-white mb-4 drop-shadow-lg">Ready to Experience Luxury?</h2>
-                        <p class="text-white text-xl opacity-95 drop-shadow">Book your perfect stay at Golden Sky Hotel & Wellness</p>
+                    <div class="text-center mb-6 md:mb-10">
+                        <h2 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2 md:mb-4 drop-shadow-lg">Ready to Experience Luxury?</h2>
+                        <p class="text-white text-base sm:text-lg md:text-xl opacity-95 drop-shadow">Book your perfect stay at Golden Sky Hotel & Wellness</p>
                     </div>
                     
                     <!-- Booking Form -->
-                    <form action="{{ route('rooms.index') }}" method="GET" class="bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl shadow-2xl p-8">
-                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <form action="{{ route('rooms.index') }}" method="GET" class="bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
                             <div>
                                 <label class="flex items-center text-sm font-bold text-gray-800 mb-3 uppercase tracking-wide">
                                     <svg class="w-5 h-5 mr-2 text-gold-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -432,7 +432,8 @@
 
         <!-- Google Reviews Section -->
         <div id="reviews" class="mb-20 bg-white py-16" 
-             x-data="reviewCarousel()">
+             x-data="reviewCarousel()"
+             x-init="init()">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- Header Section -->
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-12 scroll-reveal">
@@ -461,7 +462,7 @@
                 <div class="relative">
                     <!-- Navigation Arrow Left -->
                     <button @click="prev()"
-                            class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-all duration-300 border border-gray-200"
+                            class="absolute left-0 md:left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 md:w-12 md:h-12 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-all duration-300 border border-gray-200"
                             :class="{ 'opacity-50 cursor-not-allowed': currentIndex === 0 }">
                         <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
@@ -469,11 +470,11 @@
                     </button>
 
                     <!-- Reviews Container -->
-                    <div class="overflow-hidden px-12">
+                    <div class="overflow-hidden px-4 md:px-12">
                         <div class="flex transition-transform duration-500 ease-in-out" 
-                             :style="'transform: translateX(-' + (currentIndex * (100 / 3)) + '%)'">
+                             :style="'transform: translateX(-' + (currentIndex * (100 / cardsPerView)) + '%)'">
                             <template x-for="(review, index) in reviews" :key="index">
-                                <div class="w-full md:w-1/3 flex-shrink-0 px-4">
+                                <div class="w-full md:w-1/3 flex-shrink-0 px-2 md:px-4">
                                     <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-6 h-full">
                                         <!-- Avatar -->
                                         <div class="flex justify-center mb-4">
@@ -520,8 +521,8 @@
 
                     <!-- Navigation Arrow Right -->
                     <button @click="next()"
-                            class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-all duration-300 border border-gray-200"
-                            :class="{ 'opacity-50 cursor-not-allowed': currentIndex >= reviews.length - 3 }">
+                            class="absolute right-0 md:right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 md:w-12 md:h-12 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-all duration-300 border border-gray-200"
+                            :class="{ 'opacity-50 cursor-not-allowed': currentIndex >= reviews.length - cardsPerView }">
                         <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                         </svg>
@@ -530,10 +531,10 @@
 
                 <!-- Dots Indicator -->
                 <div class="flex justify-center space-x-2 mt-8">
-                    <template x-for="(dot, index) in Math.ceil(reviews.length / 3)" :key="index">
+                    <template x-for="(_, index) in Array.from({ length: Math.ceil(reviews.length / cardsPerView) })" :key="index">
                         <button @click="goTo(index)"
                                 class="w-2 h-2 rounded-full transition-all duration-300"
-                                :class="index === Math.floor(currentIndex / 3) ? 'bg-gold w-8' : 'bg-gray-300'">
+                                :class="index === Math.floor(currentIndex / cardsPerView) ? 'bg-gold w-8' : 'bg-gray-300'">
                         </button>
                     </template>
                 </div>
@@ -1116,10 +1117,21 @@
 function reviewCarousel() {
     return {
         currentIndex: 0,
+        cardsPerView: 3,
         reviews: @json($reviews ?? []),
         
+        init() {
+            this.updateCardsPerView();
+            window.addEventListener('resize', () => this.updateCardsPerView());
+        },
+        
+        updateCardsPerView() {
+            this.cardsPerView = window.innerWidth < 768 ? 1 : 3;
+            this.currentIndex = Math.min(this.currentIndex, Math.max(0, this.reviews.length - this.cardsPerView));
+        },
+        
         next() {
-            if (this.currentIndex < this.reviews.length - 3) {
+            if (this.currentIndex < this.reviews.length - this.cardsPerView) {
                 this.currentIndex++;
             } else {
                 this.currentIndex = 0;
@@ -1130,12 +1142,12 @@ function reviewCarousel() {
             if (this.currentIndex > 0) {
                 this.currentIndex--;
             } else {
-                this.currentIndex = this.reviews.length - 3;
+                this.currentIndex = Math.max(0, this.reviews.length - this.cardsPerView);
             }
         },
         
         goTo(index) {
-            this.currentIndex = index * 3;
+            this.currentIndex = Math.min(index * this.cardsPerView, Math.max(0, this.reviews.length - this.cardsPerView));
         }
     }
 }

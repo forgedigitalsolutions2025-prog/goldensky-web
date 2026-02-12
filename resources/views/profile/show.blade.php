@@ -4,16 +4,16 @@
 
 @section('content')
 <!-- Page Header -->
-<div class="relative h-72 bg-cover bg-center bg-no-repeat" style="background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('{{ asset('images/hotel/60382298-6594-4b0b-adec-bbca73086c5d.JPG') }}');">
+<div class="relative h-56 sm:h-64 md:h-72 bg-cover bg-center bg-no-repeat" style="background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('{{ asset('images/hotel/60382298-6594-4b0b-adec-bbca73086c5d.JPG') }}');">
     <div class="absolute inset-0 flex items-center justify-center">
         <div class="text-center text-white px-4">
-            <div class="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-gold to-gold-dark rounded-full mb-4 shadow-2xl border-4 border-white/30">
-                <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-gold to-gold-dark rounded-full mb-3 sm:mb-4 shadow-2xl border-4 border-white/30">
+                <svg class="w-10 h-10 sm:w-12 sm:h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                 </svg>
             </div>
-            <h1 class="text-5xl font-bold mb-2 drop-shadow-lg">My Profile</h1>
-            <p class="text-xl opacity-90">Manage your account and view your bookings</p>
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 drop-shadow-lg">My Profile</h1>
+            <p class="text-base sm:text-lg md:text-xl opacity-90">Manage your account and view your bookings</p>
         </div>
     </div>
 </div>
@@ -44,7 +44,7 @@
                     <form method="POST" action="{{ route('profile.update') }}">
                         @csrf
                         
-                        <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
                                 <input type="text" name="first_name" value="{{ old('first_name', $guest->first_name ?? explode(' ', $user->name)[0]) }}" required

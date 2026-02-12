@@ -50,6 +50,7 @@
         }
     </script>
     <style>
+        [x-cloak] { display: none !important; }
         .scroll-reveal {
             opacity: 0;
             transform: translateY(30px);
@@ -231,28 +232,28 @@
     </div>
 
     <!-- Navigation -->
-    <nav class="absolute top-0 left-0 right-0 z-50 backdrop-blur-sm">
+    <nav class="absolute top-0 left-0 right-0 z-50 backdrop-blur-sm" x-data="{ mobileMenuOpen: false }">
         <!-- Subtle shadow for depth -->
         <div class="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
         
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
+            <div class="flex justify-between items-center h-16 md:h-20">
                 <!-- Logo Section -->
-                <div class="flex items-center">
-                    <a href="{{ route('home') }}" class="flex items-center space-x-3 group">
-                        <div class="relative">
+                <div class="flex items-center min-w-0">
+                    <a href="{{ route('home') }}" class="flex items-center space-x-2 sm:space-x-3 group">
+                        <div class="relative flex-shrink-0">
                             <div class="absolute inset-0 bg-white/40 rounded-full blur-lg group-hover:bg-white/60 transition duration-300"></div>
-                            <img src="{{ asset('icon.png') }}" alt="Golden Sky Hotel" class="relative h-14 w-14 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 drop-shadow-lg">
+                            <img src="{{ asset('icon.png') }}" alt="Golden Sky Hotel" class="relative h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 drop-shadow-lg">
                         </div>
-                        <div>
-                            <span class="text-2xl font-bold text-white drop-shadow-lg">Golden Sky</span>
-                            <span class="block text-xs text-white/90 tracking-widest uppercase font-semibold drop-shadow">Hotel & Wellness</span>
+                        <div class="min-w-0">
+                            <span class="text-lg sm:text-xl md:text-2xl font-bold text-white drop-shadow-lg truncate block">Golden Sky</span>
+                            <span class="block text-[10px] sm:text-xs text-white/90 tracking-widest uppercase font-semibold drop-shadow">Hotel & Wellness</span>
                         </div>
                     </a>
                 </div>
                 
-                <!-- Navigation Links -->
-                <div class="flex items-center space-x-2">
+                <!-- Desktop Navigation Links (hidden on mobile) -->
+                <div class="hidden md:flex items-center space-x-2">
                     <a href="{{ route('home') }}" class="text-white hover:text-gold px-4 py-2 text-sm font-bold transition-all duration-300 relative group drop-shadow-md">
                         <span>Home</span>
                         <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gold transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
@@ -334,6 +335,51 @@
                         </a>
                     @endauth
                 </div>
+                
+                <!-- Mobile menu button -->
+                <div class="flex items-center md:hidden">
+                    <button @click="mobileMenuOpen = !mobileMenuOpen" type="button" class="text-white hover:text-gold p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold/50" aria-label="Toggle menu">
+                        <svg x-show="!mobileMenuOpen" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                        <svg x-show="mobileMenuOpen" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-cloak>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile menu panel -->
+        <div x-show="mobileMenuOpen"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 -translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 -translate-y-2"
+             class="md:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-white/20 shadow-xl"
+             style="display: none;">
+            <div class="max-w-7xl mx-auto px-4 py-4 space-y-1">
+                <a href="{{ route('home') }}" class="block text-gray-800 hover:bg-gold/10 hover:text-gold-dark px-4 py-3 rounded-lg font-semibold transition">Home</a>
+                <a href="{{ route('rooms.index') }}" class="block text-gray-800 hover:bg-gold/10 hover:text-gold-dark px-4 py-3 rounded-lg font-semibold transition">Rooms</a>
+                <a href="{{ route('spa.home') }}" target="_blank" rel="noopener noreferrer" class="block text-gray-800 hover:bg-gold/10 hover:text-gold-dark px-4 py-3 rounded-lg font-semibold transition">Spa</a>
+                <a href="{{ route('menu.index') }}" class="block text-gray-800 hover:bg-gold/10 hover:text-gold-dark px-4 py-3 rounded-lg font-semibold transition">Menu</a>
+                @auth
+                    <div class="pt-2 mt-2 border-t border-gray-200">
+                        <p class="px-4 py-2 text-sm text-gray-500">{{ auth()->user()->name }}</p>
+                        <a href="{{ route('profile') }}" class="block text-gray-800 hover:bg-gold/10 hover:text-gold-dark px-4 py-3 rounded-lg font-semibold transition">View Profile</a>
+                        <form method="POST" action="{{ route('logout') }}" class="block">
+                            @csrf
+                            <button type="submit" class="w-full text-left text-red-600 hover:bg-red-50 px-4 py-3 rounded-lg font-semibold transition">Logout</button>
+                        </form>
+                    </div>
+                @else
+                    <div class="pt-2 mt-2 border-t border-gray-200 flex flex-col gap-2">
+                        <a href="{{ route('login') }}" class="block text-center text-gray-800 hover:bg-gold/10 hover:text-gold-dark px-4 py-3 rounded-lg font-semibold transition">Login</a>
+                        <a href="{{ route('register') }}" class="block text-center bg-gradient-to-r from-gold to-gold-dark text-white px-4 py-3 rounded-lg font-bold transition">Register</a>
+                    </div>
+                @endauth
             </div>
         </div>
     </nav>
@@ -411,7 +457,7 @@
 
     <!-- Footer -->
     <footer class="bg-gradient-to-b from-gold-dark to-yellow-700 text-white mt-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <!-- About Section -->
                 <div class="col-span-1">
@@ -519,8 +565,8 @@
             </div>
 
             <!-- Bottom Bar -->
-            <div class="border-t border-yellow-600 border-opacity-30 mt-8 pt-8">
-                <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+            <div class="border-t border-yellow-600 border-opacity-30 mt-6 sm:mt-8 pt-6 sm:pt-8">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0 text-center md:text-left">
                     <p class="text-sm text-white text-opacity-80">
                         <span id="copyright-symbol" class="cursor-pointer select-none">©</span> {{ date('Y') }} Golden Sky Hotel & Wellness. All rights reserved.
                     </p>

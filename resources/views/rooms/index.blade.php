@@ -4,11 +4,11 @@
 
 @section('content')
 <!-- Page Header -->
-<div class="relative h-80 bg-cover bg-center bg-no-repeat" style="background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('{{ asset('images/hotel/18565ed7-9a8a-4e5d-8080-a615ec89f74e.JPG') }}');">
+<div class="relative h-56 sm:h-64 md:h-80 bg-cover bg-center bg-no-repeat" style="background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('{{ asset('images/hotel/18565ed7-9a8a-4e5d-8080-a615ec89f74e.JPG') }}');">
     <div class="absolute inset-0 flex items-center justify-center">
         <div class="text-center text-white px-4">
-            <h1 class="text-5xl md:text-6xl font-bold mb-4">Our Rooms & Suites</h1>
-            <p class="text-xl md:text-2xl opacity-90">Discover your perfect sanctuary</p>
+            <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-2 md:mb-4">Our Rooms & Suites</h1>
+            <p class="text-base sm:text-lg md:text-xl lg:text-2xl opacity-90">Discover your perfect sanctuary</p>
         </div>
     </div>
 </div>
@@ -18,7 +18,7 @@
         
         <!-- Search/Filter Section -->
         <div class="relative -mt-24 mb-16 z-10">
-            <div class="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-10 border-2 border-gold/20">
+            <div class="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-6 sm:p-8 md:p-10 border-2 border-gold/20">
                 <!-- Decorative Corner Accent -->
                 <div class="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-gold/20 to-transparent rounded-tl-3xl"></div>
                 <div class="absolute bottom-0 right-0 w-24 h-24 bg-gradient-to-tl from-gold/20 to-transparent rounded-br-3xl"></div>
@@ -30,7 +30,7 @@
                 </div>
                 
                 <form action="{{ route('rooms.index') }}" method="GET">
-                    <div class="grid md:grid-cols-4 gap-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                         <!-- Check-in Date -->
                         <div>
                             <label class="flex items-center text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">
@@ -75,14 +75,14 @@
                         </div>
                         
                         <!-- Action Buttons -->
-                        <div class="flex items-end space-x-3">
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 sm:space-x-3 sm:space-y-0">
                             <button type="submit" class="flex-1 bg-gradient-to-r from-gold to-gold-dark hover:from-gold-dark hover:to-gold text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl flex items-center justify-center space-x-2">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                 </svg>
                                 <span>Search</span>
                             </button>
-                            <a href="{{ route('rooms.index') }}" class="flex-none bg-white hover:bg-gray-50 text-gray-700 hover:text-gold-dark font-bold p-4 rounded-xl transition-all duration-300 border-2 border-gray-300 hover:border-gold shadow-lg hover:shadow-xl transform hover:scale-105 group">
+                            <a href="{{ route('rooms.index') }}" class="flex-none bg-white hover:bg-gray-50 text-gray-700 hover:text-gold-dark font-bold p-4 rounded-xl transition-all duration-300 border-2 border-gray-300 hover:border-gold shadow-lg hover:shadow-xl transform hover:scale-105 group flex items-center justify-center sm:justify-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform group-hover:rotate-180 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>

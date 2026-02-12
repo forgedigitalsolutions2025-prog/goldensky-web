@@ -20,8 +20,8 @@
 </head>
 <body class="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat relative" style="background-image: url('{{ asset('images/kandy/sri-lanka-city.jpeg') }}');">
     <div class="absolute inset-0 bg-black bg-opacity-60"></div>
-    <div class="max-w-md w-full mx-4 relative z-10">
-        <div class="bg-white rounded-lg shadow-2xl p-8">
+    <div class="max-w-md w-full mx-4 relative z-10 min-w-0">
+        <div class="bg-white rounded-lg shadow-2xl p-6 sm:p-8">
             <!-- Logo/Title -->
             <div class="text-center mb-8">
                 <div class="inline-block p-4 bg-gold rounded-full mb-4">
