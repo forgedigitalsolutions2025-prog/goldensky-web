@@ -38,10 +38,10 @@
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         @if(session('success'))
-            <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">{{ session('success') }}</div>
+            <div id="alert-message" class="mb-4 p-4 bg-green-100 border-2 border-green-500 text-green-800 rounded-lg text-base font-medium" role="alert">{{ session('success') }}</div>
         @endif
         @if(session('error'))
-            <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">{{ session('error') }}</div>
+            <div id="alert-message" class="mb-4 p-4 bg-red-100 border-2 border-red-500 text-red-800 rounded-lg text-base font-medium" role="alert">{{ session('error') }}</div>
         @endif
 
         <p class="text-gray-600 mb-6">Requests with <strong>more than 10 items</strong> can only be approved or rejected here in the Owner's Portal. Smaller requests can be approved from the Manager app.</p>
@@ -198,6 +198,11 @@
             document.getElementById('rejectModal').style.display = 'none';
             document.getElementById('rejectModal').classList.add('hidden');
         }
+        // Scroll success/error message into view so it's not missed
+        (function() {
+            var alertEl = document.getElementById('alert-message');
+            if (alertEl) alertEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        })();
     </script>
 </body>
 </html>

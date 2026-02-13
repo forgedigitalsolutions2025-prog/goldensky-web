@@ -692,6 +692,9 @@ class AdminController extends Controller
         if (!session('admin_authenticated')) {
             return redirect()->route('admin.login');
         }
+        if (empty($id)) {
+            return redirect()->route('admin.inventory-requests')->with('error', 'Invalid request: missing request id. Refresh the page and try again.');
+        }
 
         $approvedBy = $request->input('approved_by', 'Owner (Web Portal)');
         $approvedItems = $request->input('approved_items', []);
@@ -714,16 +717,26 @@ class AdminController extends Controller
         }
 
         $backendUrl = env('BACKEND_API_URL', 'https://whale-app-wcsre.ondigitalocean.app/api/v1');
+        $approveUrl = rtrim($backendUrl, '/') . '/inventory-requests/' . $id . '/approve';
+
         try {
             $response = Http::timeout(15)
                 ->withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json'])
-                ->post($backendUrl . '/inventory-requests/' . $id . '/approve', $payload);
+                ->post($approveUrl, $payload);
 
             if ($response->successful()) {
                 return redirect()->route('admin.inventory-requests')->withFragment('all-requests')->with('success', 'Inventory request approved successfully. It no longer appears in Pending and is shown as Approved below.');
             }
+
+            $status = $response->status();
             $body = $response->json();
             $message = $body['message'] ?? $body['error'] ?? 'Approval failed.';
+            if ($status === 404) {
+                $message = 'Request not found (404). It may have been approved or deleted already. Refresh the page to see the current list.';
+            } elseif ($status >= 500) {
+                $message = 'Backend error (' . $status . '). Please try again or contact support.';
+            }
+            Log::warning('Inventory approve failed', ['id' => $id, 'status' => $status, 'body' => $body]);
             return redirect()->route('admin.inventory-requests')->with('error', $message);
         } catch (\Exception $e) {
             Log::error('Inventory approve failed', ['id' => $id, 'error' => $e->getMessage()]);
@@ -760,8 +773,12 @@ class AdminController extends Controller
             if ($response->successful()) {
                 return redirect()->route('admin.inventory-requests')->withFragment('all-requests')->with('success', 'Inventory request rejected. It no longer appears in Pending and is shown as Rejected below.');
             }
+            $status = $response->status();
             $body = $response->json();
             $message = $body['message'] ?? $body['error'] ?? 'Rejection failed.';
+            if ($status === 404) {
+                $message = 'Request not found (404). It may have been approved or deleted already. Refresh the page.';
+            }
             return redirect()->route('admin.inventory-requests')->with('error', $message);
         } catch (\Exception $e) {
             Log::error('Inventory reject failed', ['id' => $id, 'error' => $e->getMessage()]);
