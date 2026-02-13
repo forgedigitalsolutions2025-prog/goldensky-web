@@ -104,7 +104,9 @@ class AdminController extends Controller
         $metrics['net_profit'] = $metrics['room_revenue'] - $expenses['total'];
         $metrics['expenses_breakdown'] = $expenses['breakdown'];
 
-        return view('admin.dashboard', compact('metrics', 'charts', 'recentBookings', 'period'));
+        $backendUrlForDebug = config('app.debug') ? $this->apiService->getBackendApiBaseUrl() : null;
+
+        return view('admin.dashboard', compact('metrics', 'charts', 'recentBookings', 'period', 'backendUrlForDebug'));
     }
 
     /**

@@ -42,6 +42,9 @@
     </nav>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        @if(!empty($backendUrlForDebug))
+            <p class="mb-4 text-xs text-gray-500">Debug: Backend API = <code class="bg-gray-200 px-1 rounded">{{ $backendUrlForDebug }}</code> (set APP_DEBUG=false in production)</p>
+        @endif
         <!-- Period Selector -->
         <div class="mb-6">
             <form method="GET" action="{{ route('admin.dashboard') }}" class="flex flex-wrap items-center gap-3 sm:gap-4">

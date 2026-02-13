@@ -45,6 +45,13 @@ App Platform runs the app for you: build from GitHub/GitLab, automatic HTTPS, no
 
 **Important:** Do **not** run `php artisan config:cache` in the build. On App Platform, env vars are injected at runtime; caching config at build time bakes in empty values, so `BACKEND_API_URL` and other env vars are ignored and the dashboard stays empty.
 
+### If dashboard (and Inventory Requests) show all zeros
+
+1. **Set BACKEND_API_URL** in the app’s **Environment Variables** to your backend API base URL, e.g. `https://whale-app-wcsre.ondigitalocean.app/api/v1`. Save and **redeploy**.
+2. **Do not run `php artisan config:cache`** in the build command. If it’s there, remove it and redeploy so env vars are read at runtime.
+3. **Confirm the backend URL:** Set `APP_DEBUG` = `true`, redeploy, open the Business Analytics dashboard. You’ll see a debug line like “Backend API = https://…”. Check that it matches your real backend. Set `APP_DEBUG` back to `false` and redeploy.
+4. **Check Runtime Logs** in DigitalOcean for “API request failed” or “getMetricsFromApiOnly”; they indicate the app cannot reach the backend or the backend returned an error.
+
 ### If you see "500 Internal Server Error"
 
 1. **See the real error:** In the app’s **Environment Variables**, set `APP_DEBUG` = `true`. Save, redeploy (Deploy → Deploy or Force Rebuild), then open the app URL again. Laravel will show the actual error and stack trace. Fix that issue, then set `APP_DEBUG` back to `false` and redeploy.
