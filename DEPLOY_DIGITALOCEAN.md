@@ -31,7 +31,8 @@ App Platform runs the app for you: build from GitHub/GitLab, automatic HTTPS, no
    - `ADMIN_PASSWORD` = (choose a strong password for admin login; required in production)
    - `BACKEND_API_URL` = (your backend API base URL, e.g. `https://whale-app-wcsre.ondigitalocean.app/api/v1`)
    - `SESSION_DRIVER` = `file` (so the app does not require MySQL for sessions; otherwise you get "Connection refused" to mysql when loading the site)
-   - `SESSION_DOMAIN` = (optional; for custom domain set to `.yourdomain.com` to avoid 419 on admin login, e.g. `.goldenskyhotelandwellness.com`)
+   - `SESSION_DOMAIN` = (recommended for custom domain: `.yourdomain.com` to avoid 419, e.g. `.goldenskyhotelandwellness.com`)
+   - `SESSION_LIFETIME` = (optional; default is 480 minutes; increase if users often see "Session expired" after long forms)
    Add `API_BASE_URL`, `GOOGLE_*`, mail vars, etc. if you use them.
 
 6. You do **not** need to add a DigitalOcean database if the app uses only the external backend API.
@@ -62,8 +63,8 @@ This usually happens when the session cookie or CSRF token doesn’t match the r
    In Environment Variables set:
    - `APP_URL` = `https://www.goldenskyhotelandwellness.com` (use your exact domain with `https://` and `www` if that’s what users use).
 
-2. **Optional but recommended for custom domain: set session domain**  
-   So the session cookie is valid for your domain:
+2. **Set session domain (recommended for custom domain)**  
+   So the session cookie is valid for your domain and 419 is less likely:
    - `SESSION_DOMAIN` = `.goldenskyhotelandwellness.com` (leading dot so it works for both `www` and non-www).
 
 3. **Trust proxies (already in code)**  
