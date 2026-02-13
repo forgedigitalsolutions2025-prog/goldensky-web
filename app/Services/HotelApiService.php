@@ -21,7 +21,55 @@ class HotelApiService
         } else {
             $this->apiBaseUrl = rtrim($base, '/');
         }
-        $this->timeout = 15; // seconds (increased for slow backends)
+        $this->timeout = (int) env('API_TIMEOUT_SECONDS', 45); // 45s default so dashboard loads on DO; increase if backend is slow
+    }
+
+    /**
+     * Fetch all data needed for the admin dashboard in one parallel batch (reduces timeouts on slow links).
+     * Returns keyed arrays: bookings, rooms, checked_in, pending, available_rooms, guests, payments, expenses.
+     */
+    public function fetchDashboardData($startDate, $endDate): array
+    {
+        $base = rtrim($this->apiBaseUrl, '/') . '/api/v1';
+        $startStr = $startDate->format('Y-m-d');
+        $endStr = $endDate->format('Y-m-d');
+        $headers = ['Accept' => 'application/json'];
+
+        $responses = Http::pool(fn ($pool) => [
+            $pool->as('bookings')->timeout($this->timeout)->withHeaders($headers)->get($base . '/bookings'),
+            $pool->as('rooms')->timeout($this->timeout)->withHeaders($headers)->get($base . '/rooms/with-calculated-status'),
+            $pool->as('checked_in')->timeout($this->timeout)->withHeaders($headers)->get($base . '/bookings/status/CHECKED_IN'),
+            $pool->as('pending')->timeout($this->timeout)->withHeaders($headers)->get($base . '/bookings/status/PENDING'),
+            $pool->as('available_rooms')->timeout($this->timeout)->withHeaders($headers)->get($base . '/rooms/status/AVAILABLE'),
+            $pool->as('guests')->timeout($this->timeout)->withHeaders($headers)->get($base . '/guests'),
+            $pool->as('payments')->timeout($this->timeout)->withHeaders($headers)->get($base . '/payments'),
+            $pool->as('expenses')->timeout($this->timeout)->withHeaders($headers)->get($base . '/expenses/date-range', [
+                'startDate' => $startStr,
+                'endDate' => $endStr,
+            ]),
+        ]);
+
+        $out = [
+            'bookings' => [],
+            'rooms' => [],
+            'checked_in' => [],
+            'pending' => [],
+            'available_rooms' => [],
+            'guests' => [],
+            'payments' => [],
+            'expenses' => [],
+        ];
+
+        foreach ($responses as $key => $response) {
+            if ($response->successful()) {
+                $json = $response->json();
+                $out[$key] = is_array($json) ? $json : [];
+            } else {
+                Log::warning('fetchDashboardData: request failed', ['key' => $key, 'status' => $response->status()]);
+            }
+        }
+
+        return $out;
     }
 
     /**

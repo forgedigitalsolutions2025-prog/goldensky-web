@@ -86,23 +86,30 @@ class AdminController extends Controller
         $endDate = now();
 
         // Get business metrics (gracefully handle DB unavailable / timeout)
+        $dashboardData = null;
         try {
             $metrics = $this->calculateMetrics($startDate, $endDate);
             $charts = $this->prepareChartData($startDate, $endDate, $period);
         } catch (QueryException $e) {
             Log::warning('Admin dashboard: database unavailable or timeout', ['error' => $e->getMessage()]);
-            // Still fetch booking/room/guest metrics from API so dashboard is useful
-            $metrics = $this->getMetricsFromApiOnly($startDate, $endDate);
-            $charts = ['revenue' => []];
+            // One parallel API batch instead of many sequential calls (fixes timeouts on hosted app)
+            $dashboardData = $this->apiService->fetchDashboardData($startDate, $endDate);
+            $metrics = $this->buildMetricsFromDashboardData($startDate, $endDate, $dashboardData);
+            $charts = ['revenue' => $this->buildRevenueChartFromDashboardData($startDate, $endDate, $period, $dashboardData)];
+            $recentBookings = $this->buildRecentBookingsFromDashboardData($dashboardData, 10);
+            $expenses = $this->buildExpensesFromDashboardData($dashboardData);
+            $metrics['total_expenses'] = $expenses['total'];
+            $metrics['net_profit'] = $metrics['room_revenue'] - $expenses['total'];
+            $metrics['expenses_breakdown'] = $expenses['breakdown'];
         }
 
-        $recentBookings = $this->getRecentBookings(10);
-
-        // Get expenses from backend API
-        $expenses = $this->getExpenses($startDate, $endDate);
-        $metrics['total_expenses'] = $expenses['total'];
-        $metrics['net_profit'] = $metrics['room_revenue'] - $expenses['total'];
-        $metrics['expenses_breakdown'] = $expenses['breakdown'];
+        if ($dashboardData === null) {
+            $recentBookings = $this->getRecentBookings(10);
+            $expenses = $this->getExpenses($startDate, $endDate);
+            $metrics['total_expenses'] = $expenses['total'];
+            $metrics['net_profit'] = $metrics['room_revenue'] - $expenses['total'];
+            $metrics['expenses_breakdown'] = $expenses['breakdown'];
+        }
 
         $backendUrlForDebug = config('app.debug') ? $this->apiService->getBackendApiBaseUrl() : null;
 
@@ -195,6 +202,177 @@ class AdminController extends Controller
             'available_rooms' => $availableRooms,
             'total_guests' => $totalGuests,
             'total_rooms' => $totalRooms,
+        ];
+    }
+
+    /**
+     * Build metrics from pre-fetched dashboard data (one parallel batch).
+     */
+    private function buildMetricsFromDashboardData($startDate, $endDate, array $data)
+    {
+        $bookings = collect($data['bookings'] ?? []);
+        $rooms = $data['rooms'] ?? [];
+        $totalRooms = is_array($rooms) ? count($rooms) : 0;
+        $totalBookings = $bookings->filter(function ($booking) use ($startDate, $endDate) {
+            $bookedDate = isset($booking['bookedDate']) ? Carbon::parse($booking['bookedDate']) : null;
+            return $bookedDate && $bookedDate->between($startDate, $endDate) && (($booking['status'] ?? '') !== 'CANCELLED');
+        })->count();
+        $totalDays = max(1, $startDate->diffInDays($endDate) + 1);
+        $totalRoomNights = $totalRooms * $totalDays;
+        $bookedNights = $bookings->filter(function ($booking) use ($startDate, $endDate) {
+            $checkIn = isset($booking['checkInTime']) ? Carbon::parse($booking['checkInTime']) : null;
+            return $checkIn && $checkIn->between($startDate, $endDate) && (($booking['status'] ?? '') !== 'CANCELLED');
+        })->sum(function ($booking) {
+            return $booking['numberOfNights'] ?? 0;
+        });
+        $occupancyRate = $totalRoomNights > 0 ? ($bookedNights / $totalRoomNights) * 100 : 0;
+        $checkedIn = $data['checked_in'] ?? [];
+        $pending = $data['pending'] ?? [];
+        $activeBookings = is_array($checkedIn) ? count($checkedIn) : 0;
+        $pendingBookings = is_array($pending) ? count($pending) : 0;
+        $completedBookings = $bookings->filter(function ($booking) use ($startDate, $endDate) {
+            $checkOut = isset($booking['checkOutTime']) ? Carbon::parse($booking['checkOutTime']) : null;
+            return ($booking['status'] ?? '') === 'CHECKED_OUT' && $checkOut && $checkOut->between($startDate, $endDate);
+        })->count();
+        $availableRooms = is_array($data['available_rooms'] ?? null) ? count($data['available_rooms']) : 0;
+        $guests = collect($data['guests'] ?? []);
+        $totalGuests = $guests->filter(function ($guest) use ($startDate, $endDate) {
+            $createdAt = isset($guest['createdAt']) ? Carbon::parse($guest['createdAt']) : null;
+            return $createdAt && $createdAt->between($startDate, $endDate);
+        })->count();
+        $roomRevenue = 0;
+        foreach ($data['payments'] ?? [] as $payment) {
+            $type = isset($payment['paymentType']) ? strtoupper((string) $payment['paymentType']) : '';
+            if ($type === 'REFUND') {
+                continue;
+            }
+            $currency = isset($payment['currency']) ? strtoupper((string) $payment['currency']) : '';
+            if ($currency !== 'LKR') {
+                continue;
+            }
+            $dateStr = $payment['paymentDate'] ?? null;
+            if (!$dateStr) {
+                continue;
+            }
+            $paymentDate = Carbon::parse($dateStr);
+            if (!$paymentDate->between($startDate, $endDate)) {
+                continue;
+            }
+            $roomRevenue += (float) ($payment['amount'] ?? 0);
+        }
+        $roomRevenue = round($roomRevenue, 2);
+
+        return [
+            'room_revenue' => $roomRevenue,
+            'total_bookings' => $totalBookings,
+            'occupancy_rate' => round($occupancyRate, 1),
+            'active_bookings' => $activeBookings,
+            'pending_bookings' => $pendingBookings,
+            'completed_bookings' => $completedBookings,
+            'available_rooms' => $availableRooms,
+            'total_guests' => $totalGuests,
+            'total_rooms' => $totalRooms,
+        ];
+    }
+
+    /**
+     * Build revenue chart array from pre-fetched payments.
+     */
+    private function buildRevenueChartFromDashboardData($startDate, $endDate, $period, array $data)
+    {
+        $dateFormat = $period === 'day' ? 'H:00' : ($period === 'week' ? 'D' : 'M d');
+        $byDate = [];
+        foreach ($data['payments'] ?? [] as $payment) {
+            $type = isset($payment['paymentType']) ? strtoupper((string) $payment['paymentType']) : '';
+            if ($type === 'REFUND') {
+                continue;
+            }
+            $currency = isset($payment['currency']) ? strtoupper((string) $payment['currency']) : '';
+            if ($currency !== 'LKR') {
+                continue;
+            }
+            $dateStr = $payment['paymentDate'] ?? null;
+            if (!$dateStr) {
+                continue;
+            }
+            $paymentDate = Carbon::parse($dateStr);
+            if (!$paymentDate->between($startDate, $endDate)) {
+                continue;
+            }
+            $day = $paymentDate->format('Y-m-d');
+            if (!isset($byDate[$day])) {
+                $byDate[$day] = 0;
+            }
+            $byDate[$day] += (float) ($payment['amount'] ?? 0);
+        }
+        $out = [];
+        foreach ($byDate as $day => $revenue) {
+            $out[] = [
+                'date' => Carbon::parse($day)->format($dateFormat),
+                'revenue' => round($revenue, 2),
+            ];
+        }
+        usort($out, fn ($a, $b) => strcmp($a['date'], $b['date']));
+        return $out;
+    }
+
+    /**
+     * Build recent bookings list from pre-fetched data (no extra API calls).
+     */
+    private function buildRecentBookingsFromDashboardData(array $data, $limit)
+    {
+        $bookings = collect($data['bookings'] ?? []);
+        $guestsById = collect($data['guests'] ?? [])->keyBy('guestId');
+        $roomsByNumber = collect($data['rooms'] ?? [])->keyBy('roomNumber');
+
+        return $bookings->sortByDesc(fn ($b) => $b['bookedDate'] ?? '')
+            ->take($limit)
+            ->map(function ($booking) use ($guestsById, $roomsByNumber) {
+                $guest = $guestsById->get($booking['guestId'] ?? '');
+                $room = $roomsByNumber->get($booking['roomNumber'] ?? '');
+                return [
+                    'booking_id' => $booking['bookingId'] ?? 'Unknown',
+                    'guest_name' => $guest ? trim(($guest['firstName'] ?? '') . ' ' . ($guest['lastName'] ?? '')) : 'Unknown',
+                    'room_number' => $booking['roomNumber'] ?? 'Unknown',
+                    'room_type' => $room ? ($room['roomType'] ?? 'Unknown') : 'Unknown',
+                    'check_in' => isset($booking['checkInTime']) ? Carbon::parse($booking['checkInTime'])->format('M d, Y') : 'N/A',
+                    'check_out' => isset($booking['checkOutTime']) ? Carbon::parse($booking['checkOutTime'])->format('M d, Y') : 'N/A',
+                    'nights' => $booking['numberOfNights'] ?? 0,
+                    'guests' => ($booking['numberOfAdults'] ?? 0) + ($booking['numberOfChildren'] ?? 0),
+                    'status' => $booking['status'] ?? 'UNKNOWN',
+                    'booked_date' => isset($booking['bookedDate']) ? Carbon::parse($booking['bookedDate'])->format('M d, Y') : 'N/A',
+                    'source' => $booking['bookingSource'] ?? 'UNKNOWN',
+                ];
+            })
+            ->values();
+    }
+
+    /**
+     * Build expenses total and breakdown from pre-fetched data.
+     */
+    private function buildExpensesFromDashboardData(array $data)
+    {
+        $totalExpenses = 0;
+        $breakdown = ['grn' => 0, 'staff_meals' => 0, 'salaries' => 0, 'other' => 0];
+        foreach ($data['expenses'] ?? [] as $expense) {
+            $amount = (float) ($expense['amount'] ?? 0);
+            $type = isset($expense['expenseType']) ? strtoupper((string) $expense['expenseType']) : 'OTHER';
+            $totalExpenses += $amount;
+            switch ($type) {
+                case 'GRN': $breakdown['grn'] += $amount; break;
+                case 'STAFF_MEAL': $breakdown['staff_meals'] += $amount; break;
+                case 'SALARY': $breakdown['salaries'] += $amount; break;
+                default: $breakdown['other'] += $amount; break;
+            }
+        }
+        return [
+            'total' => round($totalExpenses, 2),
+            'breakdown' => [
+                'grn' => round($breakdown['grn'], 2),
+                'staff_meals' => round($breakdown['staff_meals'], 2),
+                'salaries' => round($breakdown['salaries'], 2),
+                'other' => round($breakdown['other'], 2),
+            ],
         ];
     }
 

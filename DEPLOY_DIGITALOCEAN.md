@@ -30,18 +30,21 @@ App Platform runs the app for you: build from GitHub/GitLab, automatic HTTPS, no
    - `APP_KEY` = (run `php artisan key:generate --show` locally and paste the value)
    - `ADMIN_PASSWORD` = (choose a strong password for admin login; required in production)
    - `BACKEND_API_URL` = (your backend API base URL, e.g. `https://whale-app-wcsre.ondigitalocean.app/api/v1` — use this so the pending list and approve/reject hit the same backend; do not set `API_BASE_URL` to a different URL or approve will fail / Manager and Restaurant won’t see updates)
-   - `SESSION_DRIVER` = `file` (so the app does not require MySQL for sessions; otherwise you get "Connection refused" to mysql when loading the site)
+   - `SESSION_DRIVER` = `file` if you have **no database** (single replica only; with multiple replicas you will get session loss when navigating). For **multiple replicas**, add a database (see “Session lost when navigating” below) and set `SESSION_DRIVER` = `database`.
    - `SESSION_DOMAIN` = (recommended for custom domain: `.yourdomain.com` to avoid 419, e.g. `.goldenskyhotelandwellness.com`)
    - `SESSION_LIFETIME` = (optional; default is 480 minutes; increase if users often see "Session expired" after long forms)
+   - `API_TIMEOUT_SECONDS` = (optional; default 30; set to `45` or `60` if the backend is slow from the app’s network and the dashboard or approve calls time out)
    Add `API_BASE_URL`, `GOOGLE_*`, mail vars, etc. if you use them.
 
-6. You do **not** need to add a DigitalOcean database if the app uses only the external backend API.
+6. You do **not** need to add a DigitalOcean database if the app uses only the external backend API and you run a **single replica**. If you run **multiple replicas**, add a database and use database sessions so admin login is not lost when navigating (see “Session lost when navigating” below).
 
 7. Click **Create app**. You’ll get a URL like `https://your-app-xxxxx.ondigitalocean.app`. After the first deploy, set `APP_URL` to that URL (or to your Hostinger domain once DNS is connected).
 
 **Build command (required)** — install deps, create writable storage dirs, then cache:
 
 `composer install --no-dev --optimize-autoloader && mkdir -p storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && chmod -R 775 storage bootstrap/cache && php artisan storage:link && php artisan route:cache && php artisan view:cache`
+
+If you use a **database** (e.g. for shared sessions with multiple replicas), insert `&& php artisan migrate --force` before `&& php artisan route:cache`.
 
 **Important:** Do **not** run `php artisan config:cache` in the build. On App Platform, env vars are injected at runtime; caching config at build time bakes in empty values, so `BACKEND_API_URL` and other env vars are ignored and the dashboard stays empty.
 
@@ -50,7 +53,7 @@ App Platform runs the app for you: build from GitHub/GitLab, automatic HTTPS, no
 1. **Set BACKEND_API_URL** in the app’s **Environment Variables** to your backend API base URL, e.g. `https://whale-app-wcsre.ondigitalocean.app/api/v1`. Save and **redeploy**.
 2. **Do not run `php artisan config:cache`** in the build command. If it’s there, remove it and redeploy so env vars are read at runtime.
 3. **Confirm the backend URL:** Set `APP_DEBUG` = `true`, redeploy, open the Business Analytics dashboard. You’ll see a debug line like “Backend API = https://…”. Check that it matches your real backend. Set `APP_DEBUG` back to `false` and redeploy.
-4. **Check Runtime Logs** in DigitalOcean for “API request failed” or “getMetricsFromApiOnly”; they indicate the app cannot reach the backend or the backend returned an error.
+4. **Check Runtime Logs** in DigitalOcean for “API request failed” or “getMetricsFromApiOnly”; they indicate the app cannot reach the backend or the backend returned an error. Many **408** entries in the log are load balancer health-check timeouts when the app is busy calling the backend. If the backend is slow from the app's network, set **API_TIMEOUT_SECONDS** = `45` or `60` in env and redeploy.
 
 ### If you see "500 Internal Server Error"
 
@@ -80,6 +83,39 @@ This usually happens when the session cookie or CSRF token doesn’t match the r
 4. **Redeploy** after changing env vars so the new values are used.
 
 If 419 persists, temporarily set `APP_DEBUG=true`, reproduce the login, and check the Laravel log or error page for session/CSRF errors.
+
+### Session lost when navigating (e.g. to Inventory Requests) — multiple replicas
+
+If you see **302 to login** when opening **Inventory Requests** or other admin pages right after logging in, the next request is likely hitting a **different replica** and file-based sessions are not shared. Fix it by using a **shared session store**.
+
+1. **Add a database** in DigitalOcean App Platform (see [How to add a database resource](#how-to-add-a-database-resource) below):
+   - Open your app → **Resources** → **Add Resource** → **Database** (MySQL or PostgreSQL). Create it and **link** it to your app component so `DATABASE_URL` or `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` are set automatically.
+
+2. **Run migrations** so the `sessions` table exists:
+   - In your app’s **Build Command**, append: `&& php artisan migrate --force`
+   - Full example: `composer install --no-dev --optimize-autoloader && mkdir -p storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && chmod -R 775 storage bootstrap/cache && php artisan storage:link && php artisan migrate --force && php artisan route:cache && php artisan view:cache`
+   - If the build does not have database env vars (some platforms inject them only at runtime), use a **Release Command** or a **Run Command** that runs `php artisan migrate --force` before starting the web process, or run migrations once manually from the DO console.
+
+3. **Switch to database sessions:**
+   - In **Environment Variables** set `SESSION_DRIVER` = `database`. Remove or do not set `SESSION_DRIVER=file`.
+
+4. **Redeploy.** Sessions are now stored in the database and shared across all replicas, so admin login will persist when navigating to Inventory Requests and other admin pages.
+
+### How to add a database resource
+
+1. In [DigitalOcean Control Panel](https://cloud.digitalocean.com/apps) go to **Apps** → click your app.
+2. Click **Add components** (or the **+** next to your app components).
+3. Choose **Create or attach database**.
+4. **Option A — Dev database (simplest, for sessions):**
+   - Select **Create a new database** and choose **PostgreSQL** (dev databases are PostgreSQL only).
+   - Pick a name (e.g. `sessions-db`). Dev DBs are in the same region as the app and are fine for session storage.
+   - Click **Create and Attach**. The app is automatically added as a trusted source.
+5. **Option B — Managed database (production):**
+   - To create a new managed DB: choose **Create a new database**, pick **MySQL** or **PostgreSQL**, choose a plan and region.
+   - To use an existing one: choose **Attach an existing database** and select a cluster from **Database Clusters** (you must have created it first via **Create** → **Databases** in the control panel).
+   - Enable **Add app as a trusted source** so the app can connect.
+   - Click **Create and Attach** (or **Attach**).
+6. After the database is attached, DigitalOcean injects connection env vars into your app. For **PostgreSQL** (e.g. dev database), set **`DB_CONNECTION`** = **`pgsql`** in the app’s Environment Variables so Laravel uses the `pgsql` connection; `DATABASE_URL` is usually auto-injected. For **MySQL** (managed), the app may get `DB_HOST`, `DB_DATABASE`, etc. automatically when the DB is linked; if not, copy them from the database’s **Connection details** in the app’s **Settings** → click your database.
 
 ### 3. Use your Hostinger domain
 
@@ -191,7 +227,7 @@ After that, set in `.env`:
 - [ ] `APP_URL` and `GOOGLE_REDIRECT_URI` use your real domain with `https://`.
 - [ ] `ADMIN_PASSWORD` set in production env.
 - [ ] `APP_DEBUG=false`, `APP_ENV=production`.
-- [ ] Database (if used) reachable and `DB_*` set.
+- [ ] Database (if used) reachable and `DB_*` set. With multiple replicas, use a database and `SESSION_DRIVER=database` so admin session is not lost when navigating.
 - [ ] `API_BASE_URL` / `BACKEND_API_URL` point to your backend (e.g. existing whale-app or another DO service).
 
 Once DNS has propagated and env is correct, the web app is ready to use at your Hostinger domain on DigitalOcean.
