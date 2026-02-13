@@ -93,9 +93,15 @@ return [
     |--------------------------------------------------------------------------
     | Session Cookie Domain
     |--------------------------------------------------------------------------
+    | Set SESSION_DOMAIN to .yourdomain.com on the hosted app to avoid 419.
+    | If unset, we derive from APP_URL (except for localhost) so one env var can fix it.
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+    'domain' => env('SESSION_DOMAIN') ?: (
+        ($host = parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST)) && !in_array($host, ['localhost', '127.0.0.1'], true)
+            ? '.' . $host
+            : null
+    ),
 
     /*
     |--------------------------------------------------------------------------

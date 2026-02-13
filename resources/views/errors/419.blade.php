@@ -11,6 +11,7 @@
         <div class="text-6xl mb-4">⏱️</div>
         <h1 class="text-xl font-bold text-gray-800 mb-2">Session expired</h1>
         <p class="text-gray-600 mb-6">Your session has expired for security. Refresh the page and try again. If you were signing in, please log in again.</p>
+        <p class="text-sm text-gray-500 mb-4">If this happens every time on the hosted site, set <strong>APP_URL</strong> to your exact site URL and <strong>SESSION_DOMAIN</strong> to <code class="bg-gray-100 px-1 rounded">.yourdomain.com</code> in your host's environment variables, then redeploy.</p>
         <div class="space-y-3">
             <a href="javascript:window.location.reload()" class="block w-full py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition">
                 Refresh this page
