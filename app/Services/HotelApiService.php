@@ -25,6 +25,15 @@ class HotelApiService
     }
 
     /**
+     * Return the backend API base URL (e.g. https://whale-app-xxx.ondigitalocean.app/api/v1).
+     * Use this for any direct HTTP calls (e.g. approve/reject) so they hit the same backend as list/fetch.
+     */
+    public function getBackendApiBaseUrl(): string
+    {
+        return rtrim($this->apiBaseUrl, '/') . '/api/v1';
+    }
+
+    /**
      * Make API request with error handling and retry logic
      */
     private function makeRequest(string $method, string $endpoint, array $data = [], int $retries = 2)

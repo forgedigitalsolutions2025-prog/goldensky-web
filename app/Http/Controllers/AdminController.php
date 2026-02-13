@@ -716,8 +716,8 @@ class AdminController extends Controller
             }
         }
 
-        $backendUrl = env('BACKEND_API_URL', 'https://whale-app-wcsre.ondigitalocean.app/api/v1');
-        $approveUrl = rtrim($backendUrl, '/') . '/inventory-requests/' . $id . '/approve';
+        $backendBase = $this->apiService->getBackendApiBaseUrl();
+        $approveUrl = $backendBase . '/inventory-requests/' . $id . '/approve';
 
         try {
             $response = Http::timeout(15)
@@ -764,11 +764,11 @@ class AdminController extends Controller
             'rejectionReason' => $rejectionReason,
         ];
 
-        $backendUrl = env('BACKEND_API_URL', 'https://whale-app-wcsre.ondigitalocean.app/api/v1');
+        $backendBase = $this->apiService->getBackendApiBaseUrl();
         try {
             $response = Http::timeout(15)
                 ->withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json'])
-                ->post($backendUrl . '/inventory-requests/' . $id . '/reject', $payload);
+                ->post($backendBase . '/inventory-requests/' . $id . '/reject', $payload);
 
             if ($response->successful()) {
                 return redirect()->route('admin.inventory-requests')->withFragment('all-requests')->with('success', 'Inventory request rejected. It no longer appears in Pending and is shown as Rejected below.');

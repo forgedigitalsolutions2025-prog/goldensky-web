@@ -29,7 +29,7 @@ App Platform runs the app for you: build from GitHub/GitLab, automatic HTTPS, no
    - `APP_URL` = `https://your-app-xxxxx.ondigitalocean.app` (replace with your app URL after first deploy, or your Hostinger domain once DNS is set, e.g. `https://www.goldenskyhotelandwellness.com`)
    - `APP_KEY` = (run `php artisan key:generate --show` locally and paste the value)
    - `ADMIN_PASSWORD` = (choose a strong password for admin login; required in production)
-   - `BACKEND_API_URL` = (your backend API base URL, e.g. `https://whale-app-wcsre.ondigitalocean.app/api/v1`)
+   - `BACKEND_API_URL` = (your backend API base URL, e.g. `https://whale-app-wcsre.ondigitalocean.app/api/v1` — use this so the pending list and approve/reject hit the same backend; do not set `API_BASE_URL` to a different URL or approve will fail / Manager and Restaurant won’t see updates)
    - `SESSION_DRIVER` = `file` (so the app does not require MySQL for sessions; otherwise you get "Connection refused" to mysql when loading the site)
    - `SESSION_DOMAIN` = (recommended for custom domain: `.yourdomain.com` to avoid 419, e.g. `.goldenskyhotelandwellness.com`)
    - `SESSION_LIFETIME` = (optional; default is 480 minutes; increase if users often see "Session expired" after long forms)
