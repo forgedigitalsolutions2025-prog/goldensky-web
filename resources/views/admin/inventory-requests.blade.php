@@ -122,7 +122,7 @@
             @endif
         </div>
 
-        <div class="bg-white rounded-lg shadow-lg p-6">
+        <div id="all-requests" class="bg-white rounded-lg shadow-lg p-6">
             <h2 class="text-xl font-bold text-gray-800 mb-4">All Requests (reference)</h2>
             @if(empty($allRequests))
                 <p class="text-gray-500">No inventory requests.</p>

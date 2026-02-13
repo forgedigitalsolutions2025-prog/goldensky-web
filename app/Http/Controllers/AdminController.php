@@ -720,7 +720,7 @@ class AdminController extends Controller
                 ->post($backendUrl . '/inventory-requests/' . $id . '/approve', $payload);
 
             if ($response->successful()) {
-                return redirect()->route('admin.inventory-requests')->with('success', 'Inventory request approved successfully.');
+                return redirect()->route('admin.inventory-requests')->withFragment('all-requests')->with('success', 'Inventory request approved successfully. It no longer appears in Pending and is shown as Approved below.');
             }
             $body = $response->json();
             $message = $body['message'] ?? $body['error'] ?? 'Approval failed.';
@@ -758,7 +758,7 @@ class AdminController extends Controller
                 ->post($backendUrl . '/inventory-requests/' . $id . '/reject', $payload);
 
             if ($response->successful()) {
-                return redirect()->route('admin.inventory-requests')->with('success', 'Inventory request rejected.');
+                return redirect()->route('admin.inventory-requests')->withFragment('all-requests')->with('success', 'Inventory request rejected. It no longer appears in Pending and is shown as Rejected below.');
             }
             $body = $response->json();
             $message = $body['message'] ?? $body['error'] ?? 'Rejection failed.';
