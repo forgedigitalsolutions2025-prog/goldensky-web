@@ -21,6 +21,8 @@ class HotelApiService
         } else {
             $this->apiBaseUrl = rtrim($base, '/');
         }
+        // Strip backticks, newlines, and other invalid header chars (env/DO UI can add these; Guzzle rejects them in Host header)
+        $this->apiBaseUrl = trim(preg_replace('/[\r\n`\x00-\x1F\x7F]/u', '', $this->apiBaseUrl));
         $this->timeout = (int) env('API_TIMEOUT_SECONDS', 45); // 45s default so dashboard loads on DO; increase if backend is slow
     }
 

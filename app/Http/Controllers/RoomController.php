@@ -17,6 +17,7 @@ class RoomController extends Controller
 
     /**
      * Display available rooms
+     * Uses one getAllBookings() when dates are provided instead of N getBookingsByRoom() calls (avoids timeout on hosted app).
      */
     public function index(Request $request)
     {
@@ -24,51 +25,49 @@ class RoomController extends Controller
         $checkOut = $request->input('check_out');
 
         try {
-            // Get all rooms from API (with calculated status)
             $allRooms = $this->apiService->getAllRooms();
-            
+
             if (empty($allRooms)) {
                 $rooms = collect([]);
-            } else {
-                // Filter rooms based on availability if dates provided
-        if ($checkIn && $checkOut) {
-                    $rooms = collect($allRooms)->filter(function ($room) use ($checkIn, $checkOut) {
-                        // Check if room is available for the specified dates
-                        // Get bookings for this room
-                        $bookings = $this->apiService->getBookingsByRoom($room['roomNumber']);
-                        
-                        // Filter out cancelled bookings
-                        $activeBookings = collect($bookings)->filter(function ($booking) {
-                            return $booking['status'] !== 'CANCELLED';
-                        });
-                        
-                        // Check for overlapping bookings
-                        $hasOverlap = $activeBookings->contains(function ($booking) use ($checkIn, $checkOut) {
-                            $bookingCheckIn = date('Y-m-d', strtotime($booking['checkInTime']));
-                            $bookingCheckOut = date('Y-m-d', strtotime($booking['checkOutTime']));
-                            
-                            // Overlap: booking checkout > requested checkin AND booking checkin < requested checkout
-                            return $bookingCheckOut > $checkIn && $bookingCheckIn < $checkOut;
-                        });
-                        
-                        return !$hasOverlap;
-                    })->values();
-        } else {
-                    // No dates provided, show rooms that are currently available
-                    $rooms = collect($allRooms)->filter(function ($room) {
-                        // Room is available if status is AVAILABLE
-                        return isset($room['status']) && $room['status'] === 'AVAILABLE';
-                    })->values();
-                }
-        }
+            } elseif ($checkIn && $checkOut) {
+                // One API call for all bookings, then filter in PHP (avoids N+1 and timeouts)
+                $allBookings = $this->apiService->getAllBookings();
+                $activeBookings = collect($allBookings)->filter(function ($booking) {
+                    return ($booking['status'] ?? '') !== 'CANCELLED';
+                });
 
-        return view('rooms.index', compact('rooms', 'checkIn', 'checkOut'));
+                $rooms = collect($allRooms)->filter(function ($room) use ($checkIn, $checkOut, $activeBookings) {
+                    $roomNumber = $room['roomNumber'] ?? $room['room_number'] ?? null;
+                    if ($roomNumber === null) {
+                        return true;
+                    }
+                    $roomBookings = $activeBookings->where('roomNumber', $roomNumber)->values();
+                    if ($roomBookings->isEmpty()) {
+                        return true;
+                    }
+                    $hasOverlap = $roomBookings->contains(function ($booking) use ($checkIn, $checkOut) {
+                        $bookingCheckIn = isset($booking['checkInTime']) ? date('Y-m-d', strtotime($booking['checkInTime'])) : null;
+                        $bookingCheckOut = isset($booking['checkOutTime']) ? date('Y-m-d', strtotime($booking['checkOutTime'])) : null;
+                        if (!$bookingCheckIn || !$bookingCheckOut) {
+                            return false;
+                        }
+                        return $bookingCheckOut > $checkIn && $bookingCheckIn < $checkOut;
+                    });
+                    return !$hasOverlap;
+                })->values();
+            } else {
+                // No dates: show rooms that are currently available
+                $rooms = collect($allRooms)->filter(function ($room) {
+                    return isset($room['status']) && $room['status'] === 'AVAILABLE';
+                })->values();
+            }
+
+            return view('rooms.index', compact('rooms', 'checkIn', 'checkOut'));
         } catch (\Exception $e) {
             Log::error('Error fetching rooms', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
             $rooms = collect([]);
             return view('rooms.index', compact('rooms', 'checkIn', 'checkOut'));
         }
