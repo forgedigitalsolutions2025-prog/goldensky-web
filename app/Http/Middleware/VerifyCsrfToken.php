@@ -12,7 +12,8 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        // Add any API endpoints that need to be excluded
+        // Allow admin login without CSRF when session cookie fails (e.g. wrong domain on first load).
+        'admin/login',
     ];
 }
 
