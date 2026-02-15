@@ -75,6 +75,9 @@ Route::post('/admin/logout', [AdminController::class, 'logout'])->name('admin.lo
 Route::get('/admin/inventory-requests', [AdminController::class, 'inventoryRequestsIndex'])->name('admin.inventory-requests');
 Route::post('/admin/inventory-requests/{id}/approve', [AdminController::class, 'approveInventoryRequest'])->name('admin.inventory-requests.approve');
 Route::post('/admin/inventory-requests/{id}/reject', [AdminController::class, 'rejectInventoryRequest'])->name('admin.inventory-requests.reject');
+Route::get('/admin/stock-availability', [AdminController::class, 'stockAvailability'])->name('admin.stock-availability');
+Route::get('/admin/restaurant', [AdminController::class, 'restaurant'])->name('admin.restaurant');
+Route::get('/admin/restaurant/orders/{orderId}', [AdminController::class, 'restaurantOrderShow'])->name('admin.restaurant.order.show');
 
 // Email verification routes
 Route::get('/email/verify', [VerificationController::class, 'show'])->name('verification.notice');

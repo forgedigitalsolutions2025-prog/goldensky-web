@@ -1107,6 +1107,83 @@ class AdminController extends Controller
     }
 
     /**
+     * Stock availability (Owner's Portal) - shows restaurant app inventory
+     */
+    public function stockAvailability()
+    {
+        if (!session('admin_authenticated')) {
+            return redirect()->route('admin.login');
+        }
+
+        $inventoryItems = [];
+        try {
+            $inventoryItems = $this->apiService->getInventoryItems();
+            $inventoryItems = collect($inventoryItems)->sortBy(function ($item) {
+                return ($item['category'] ?? '') . ' ' . ($item['itemName'] ?? $item['item_name'] ?? '');
+            })->values()->all();
+        } catch (\Exception $e) {
+            Log::warning('Failed to fetch inventory items', ['error' => $e->getMessage()]);
+        }
+
+        return view('admin.stock-availability', ['inventoryItems' => $inventoryItems]);
+    }
+
+    /**
+     * Restaurant (Owner's Portal) - bills and KOTs
+     */
+    public function restaurant()
+    {
+        if (!session('admin_authenticated')) {
+            return redirect()->route('admin.login');
+        }
+
+        $allOrders = [];
+        try {
+            $allOrders = $this->apiService->getRestaurantOrders();
+            $allOrders = collect($allOrders)->sortByDesc(function ($o) {
+                $d = $o['orderDate'] ?? $o['order_date'] ?? $o['createdAt'] ?? $o['created_at'] ?? '';
+                return is_string($d) ? $d : '';
+            })->values()->all();
+        } catch (\Exception $e) {
+            Log::warning('Failed to fetch restaurant orders', ['error' => $e->getMessage()]);
+        }
+
+        // Bills = orders that have been invoiced (invoiceNumber set)
+        $bills = collect($allOrders)->filter(function ($o) {
+            $inv = $o['invoiceNumber'] ?? $o['invoice_number'] ?? null;
+            return !empty($inv);
+        })->values()->all();
+
+        // KOTs = all orders (every order gets a Kitchen Order Ticket)
+        $kots = $allOrders;
+
+        return view('admin.restaurant', ['bills' => $bills, 'kots' => $kots]);
+    }
+
+    /**
+     * Restaurant order detail (Owner's Portal) - shows order items and full details
+     */
+    public function restaurantOrderShow(string $orderId)
+    {
+        if (!session('admin_authenticated')) {
+            return redirect()->route('admin.login');
+        }
+
+        $order = null;
+        try {
+            $order = $this->apiService->getRestaurantOrderByOrderId($orderId);
+        } catch (\Exception $e) {
+            Log::warning('Failed to fetch restaurant order', ['orderId' => $orderId, 'error' => $e->getMessage()]);
+        }
+
+        if (!$order) {
+            return redirect()->route('admin.restaurant')->with('error', 'Order not found.');
+        }
+
+        return view('admin.restaurant-order', ['order' => $order]);
+    }
+
+    /**
      * Normalize API response to array of arrays for the view (id, requestId, requestDate, requestedBy, reason, status, items).
      */
     private function normalizeInventoryRequests(array $list): array

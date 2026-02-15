@@ -392,6 +392,36 @@ class HotelApiService
         return $result['success'] && is_array($result['data'] ?? null) ? $result['data'] : [];
     }
 
+    /**
+     * Get all inventory items from the backend (Restaurant app inventory/stock).
+     */
+    public function getInventoryItems()
+    {
+        $result = $this->makeRequest('GET', '/inventory-items');
+        return $result['success'] && is_array($result['data'] ?? null) ? $result['data'] : [];
+    }
+
+    /**
+     * Get all restaurant orders (KOTs - Kitchen Order Tickets) from the backend.
+     * Bills are derived from orders that have invoiceNumber set.
+     */
+    public function getRestaurantOrders()
+    {
+        $result = $this->makeRequest('GET', '/orders');
+        $data = $result['success'] ? ($result['data'] ?? []) : [];
+        return is_array($data) ? $data : [];
+    }
+
+    /**
+     * Get a single restaurant order by order ID (includes items).
+     */
+    public function getRestaurantOrderByOrderId(string $orderId)
+    {
+        $encoded = urlencode($orderId);
+        $result = $this->makeRequest('GET', "/orders/order-id/{$encoded}");
+        return $result['success'] ? ($result['data'] ?? null) : null;
+    }
+
     // ==================== GRN (Goods Receive Notes) ====================
 
     /**

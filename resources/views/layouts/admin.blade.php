@@ -104,6 +104,14 @@
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                     <span>Inventory Requests</span>
                 </a>
+                <a href="{{ route('admin.stock-availability') }}" class="nav-link gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.stock-availability*') ? 'bg-gold-dark text-white' : 'text-slate-300 hover:bg-slate-700/80 hover:text-white' }} transition">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    <span>Stock Availability</span>
+                </a>
+                <a href="{{ route('admin.restaurant') }}" class="nav-link gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.restaurant*') ? 'bg-gold-dark text-white' : 'text-slate-300 hover:bg-slate-700/80 hover:text-white' }} transition">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>
+                    <span>Restaurant</span>
+                </a>
             </div>
         </nav>
     </aside>
