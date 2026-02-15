@@ -392,6 +392,42 @@ class HotelApiService
         return $result['success'] && is_array($result['data'] ?? null) ? $result['data'] : [];
     }
 
+    // ==================== GRN (Goods Receive Notes) ====================
+
+    /**
+     * Get all GRNs from the backend.
+     */
+    public function getAllGRNs()
+    {
+        $result = $this->makeRequest('GET', '/grns');
+        $data = $result['success'] ? ($result['data'] ?? []) : [];
+        return is_array($data) ? $data : [];
+    }
+
+    /**
+     * Get a single GRN by ID.
+     */
+    public function getGRNById($id)
+    {
+        $result = $this->makeRequest('GET', "/grns/{$id}");
+        return $result['success'] ? ($result['data'] ?? null) : null;
+    }
+
+    /**
+     * Get GRNs by date range.
+     */
+    public function getGRNsByDateRange($startDate, $endDate)
+    {
+        $startStr = $startDate->format('Y-m-d');
+        $endStr = $endDate->format('Y-m-d');
+        $result = $this->makeRequest('GET', '/grns/date-range', [
+            'startDate' => $startStr,
+            'endDate' => $endStr,
+        ]);
+        $data = $result['success'] ? ($result['data'] ?? []) : [];
+        return is_array($data) ? $data : [];
+    }
+
     // ==================== GUESTS ====================
 
     /**

@@ -6,6 +6,7 @@ use App\Services\HotelApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Http;
@@ -81,9 +82,30 @@ class AdminController extends Controller
             return redirect()->route('admin.login');
         }
 
+        // Ensure room list and available count use fresh calculated status (clear cache)
+        Cache::forget('api_rooms_all');
+
         $period = $request->input('period', 'month');
-        $startDate = $this->getStartDate($period);
-        $endDate = now();
+        $startDateStr = $request->input('start_date');
+        $endDateStr = $request->input('end_date');
+
+        if ($startDateStr && $endDateStr) {
+            try {
+                $startDate = Carbon::parse($startDateStr)->startOfDay();
+                $endDate = Carbon::parse($endDateStr)->endOfDay();
+                if ($startDate->gt($endDate)) {
+                    $startDate = Carbon::parse($endDateStr)->startOfDay();
+                    $endDate = Carbon::parse($startDateStr)->endOfDay();
+                }
+                $period = 'custom';
+            } catch (\Exception $e) {
+                $startDate = $this->getStartDate($period);
+                $endDate = now();
+            }
+        } else {
+            $startDate = $this->getStartDate($period);
+            $endDate = now();
+        }
 
         // Get business metrics (gracefully handle DB unavailable / timeout)
         $dashboardData = null;
@@ -113,7 +135,174 @@ class AdminController extends Controller
 
         $backendUrlForDebug = config('app.debug') ? $this->apiService->getBackendApiBaseUrl() : null;
 
-        return view('admin.dashboard', compact('metrics', 'charts', 'recentBookings', 'period', 'backendUrlForDebug'));
+        $roomList = $this->buildRoomList();
+
+        return view('admin.dashboard', compact('metrics', 'charts', 'recentBookings', 'period', 'startDate', 'endDate', 'backendUrlForDebug', 'roomList'));
+    }
+
+    /**
+     * Build room list with availability and guest details for occupied/booked rooms.
+     */
+    private function buildRoomList()
+    {
+        try {
+            $rooms = $this->apiService->getAllRooms();
+            $checkedIn = collect($this->apiService->getBookingsByStatus('CHECKED_IN'));
+            $pending = collect($this->apiService->getBookingsByStatus('PENDING'));
+            $guests = collect($this->apiService->getAllGuests());
+            $guestsById = $guests->keyBy(function ($g) {
+                return $g['guestId'] ?? $g['id'] ?? $g['guest_id'] ?? null;
+            })->filter();
+            $byRoom = [];
+            foreach ($checkedIn as $b) {
+                $rn = $b['roomNumber'] ?? $b['room_number'] ?? '';
+                if ($rn) $byRoom[$rn] = $b;
+            }
+            foreach ($pending as $b) {
+                $rn = $b['roomNumber'] ?? $b['room_number'] ?? '';
+                if ($rn && !isset($byRoom[$rn])) $byRoom[$rn] = $b;
+            }
+            $bookingByRoom = collect($byRoom);
+
+            $list = [];
+            foreach ($rooms as $room) {
+                $rn = $room['roomNumber'] ?? $room['room_number'] ?? '';
+                $booking = $bookingByRoom->get($rn);
+                $guestId = $booking['guestId'] ?? $booking['guest_id'] ?? null;
+                $guest = $guestId ? $guestsById->get($guestId) : null;
+                $guestName = $guest ? trim(($guest['firstName'] ?? $guest['first_name'] ?? '') . ' ' . ($guest['lastName'] ?? $guest['last_name'] ?? '')) : null;
+                $checkInRaw = $booking['checkInTime'] ?? $booking['check_in_time'] ?? null;
+                $checkOutRaw = $booking['checkOutTime'] ?? $booking['check_out_time'] ?? null;
+                $list[] = [
+                    'room_number' => $rn,
+                    'room_type' => $room['roomType'] ?? $room['room_type'] ?? 'Unknown',
+                    'status' => $room['status'] ?? 'UNKNOWN',
+                    'guest_name' => $guestName ?: null,
+                    'check_in' => $checkInRaw ? Carbon::parse($checkInRaw)->format('M d, Y') : null,
+                    'check_out' => $checkOutRaw ? Carbon::parse($checkOutRaw)->format('M d, Y') : null,
+                ];
+            }
+            return collect($list)->sortBy('room_number')->values()->all();
+        } catch (\Exception $e) {
+            Log::warning('Dashboard: could not build room list', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
+     * Revenue page - details, breakdown, chart
+     */
+    public function revenue(Request $request)
+    {
+        if (!session('admin_authenticated')) {
+            return redirect()->route('admin.login');
+        }
+
+        $period = $request->input('period', 'month');
+        $startDateStr = $request->input('start_date');
+        $endDateStr = $request->input('end_date');
+        if ($startDateStr && $endDateStr) {
+            try {
+                $startDate = Carbon::parse($startDateStr)->startOfDay();
+                $endDate = Carbon::parse($endDateStr)->endOfDay();
+                if ($startDate->gt($endDate)) {
+                    $startDate = Carbon::parse($endDateStr)->startOfDay();
+                    $endDate = Carbon::parse($startDateStr)->endOfDay();
+                }
+                $period = 'custom';
+            } catch (\Exception $e) {
+                $startDate = $this->getStartDate($period);
+                $endDate = now();
+            }
+        } else {
+            $startDate = $this->getStartDate($period);
+            $endDate = now();
+        }
+
+        $totalRevenue = $this->getRevenueFromApi($startDate, $endDate);
+        $payments = collect($this->apiService->getAllPayments());
+        $dateFormat = $period === 'day' ? 'H:00' : ($period === 'week' ? 'D' : 'M d');
+        $chartData = [];
+        $byDate = [];
+        $paymentTransactions = [];
+        $roomRevenue = 0;
+        $restaurantRevenue = 0;
+        $additionalRevenue = 0;
+
+        foreach ($payments as $payment) {
+            $type = isset($payment['paymentType']) ? strtoupper((string) $payment['paymentType']) : '';
+            if ($type === 'REFUND') continue;
+            if (strtoupper((string) ($payment['currency'] ?? '')) !== 'LKR') continue;
+            $dateStr = $payment['paymentDate'] ?? null;
+            if (!$dateStr) continue;
+            $paymentDate = Carbon::parse($dateStr);
+            if (!$paymentDate->between($startDate, $endDate)) continue;
+            $amount = (float) ($payment['amount'] ?? 0);
+            $restOrderId = $payment['restaurantOrderId'] ?? $payment['restaurant_order_id'] ?? null;
+            $bookingId = $payment['bookingId'] ?? $payment['booking_id'] ?? null;
+            $hasRest = !empty($restOrderId);
+            $hasBook = !empty($bookingId);
+
+            if ($hasRest) {
+                $restaurantRevenue += $amount;
+            } elseif ($hasBook) {
+                $roomRevenue += $amount;
+            } else {
+                $additionalRevenue += $amount;
+            }
+
+            $day = $paymentDate->format('Y-m-d');
+            $byDate[$day] = ($byDate[$day] ?? 0) + $amount;
+            $paymentTransactions[] = [
+                'date' => $paymentDate,
+                'paymentId' => $payment['paymentId'] ?? $payment['payment_id'] ?? '-',
+                'bookingId' => $bookingId ?: '-',
+                'paymentType' => $payment['paymentType'] ?? $payment['payment_type'] ?? '-',
+                'paymentMethod' => $payment['paymentMethod'] ?? $payment['payment_method'] ?? '-',
+                'amount' => $amount,
+            ];
+        }
+        usort($paymentTransactions, fn ($a, $b) => $b['date']->timestamp <=> $a['date']->timestamp);
+        foreach ($byDate as $day => $rev) {
+            $chartData[] = ['date' => Carbon::parse($day)->format($dateFormat), 'revenue' => round($rev, 2)];
+        }
+        usort($chartData, fn ($a, $b) => strcmp($a['date'], $b['date']));
+
+        $revenueBreakdown = [
+            'room' => round($roomRevenue, 2),
+            'restaurant' => round($restaurantRevenue, 2),
+            'additional' => round($additionalRevenue, 2),
+        ];
+
+        return view('admin.revenue', compact('totalRevenue', 'revenueBreakdown', 'chartData', 'paymentTransactions', 'period', 'startDate', 'endDate'));
+    }
+
+    /**
+     * Expenses page - total, breakdown by type
+     */
+    public function expenses(Request $request)
+    {
+        if (!session('admin_authenticated')) {
+            return redirect()->route('admin.login');
+        }
+
+        $period = $request->input('period', 'month');
+        $startDate = $this->getStartDate($period);
+        $endDate = now();
+
+        $expensesData = $this->getExpenses($startDate, $endDate);
+
+        return view('admin.expenses', [
+            'total' => $expensesData['total'],
+            'breakdown' => $expensesData['breakdown'],
+            'expensesByType' => $expensesData['expensesByType'] ?? [
+                'grn' => [], 'staff_meals' => [], 'salaries' => [], 'other' => []
+            ],
+            'grnsByNumber' => $expensesData['grnsByNumber'] ?? [],
+            'period' => $period,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+        ]);
     }
 
     /**
@@ -175,7 +364,14 @@ class AdminController extends Controller
         }
 
         try {
-            $availableRooms = count($this->apiService->getRoomsByStatus('AVAILABLE'));
+            $checkedIn = $this->apiService->getBookingsByStatus('CHECKED_IN');
+            $pending = $this->apiService->getBookingsByStatus('PENDING');
+            $occupiedCount = collect($checkedIn)->merge($pending)
+                ->map(fn ($b) => $b['roomNumber'] ?? $b['room_number'] ?? null)
+                ->filter()
+                ->unique()
+                ->count();
+            $availableRooms = max(0, $totalRooms - $occupiedCount);
         } catch (\Exception $e) {
             Log::warning('getMetricsFromApiOnly: available rooms', ['error' => $e->getMessage()]);
         }
@@ -234,7 +430,12 @@ class AdminController extends Controller
             $checkOut = isset($booking['checkOutTime']) ? Carbon::parse($booking['checkOutTime']) : null;
             return ($booking['status'] ?? '') === 'CHECKED_OUT' && $checkOut && $checkOut->between($startDate, $endDate);
         })->count();
-        $availableRooms = is_array($data['available_rooms'] ?? null) ? count($data['available_rooms']) : 0;
+        $occupiedRoomNumbers = collect($data['checked_in'] ?? [])
+            ->merge($data['pending'] ?? [])
+            ->map(fn ($b) => $b['roomNumber'] ?? $b['room_number'] ?? null)
+            ->filter()
+            ->unique();
+        $availableRooms = max(0, $totalRooms - $occupiedRoomNumbers->count());
         $guests = collect($data['guests'] ?? []);
         $totalGuests = $guests->filter(function ($guest) use ($startDate, $endDate) {
             $createdAt = isset($guest['createdAt']) ? Carbon::parse($guest['createdAt']) : null;
@@ -506,9 +707,16 @@ class AdminController extends Controller
             $completedBookings = 0;
         }
 
-        // Available rooms - using API
+        // Available rooms = total - rooms with CHECKED_IN or PENDING (same logic as room list)
         try {
-            $availableRooms = count($this->apiService->getRoomsByStatus('AVAILABLE'));
+            $checkedIn = $this->apiService->getBookingsByStatus('CHECKED_IN');
+            $pending = $this->apiService->getBookingsByStatus('PENDING');
+            $occupiedCount = collect($checkedIn)->merge($pending)
+                ->map(fn ($b) => $b['roomNumber'] ?? $b['room_number'] ?? null)
+                ->filter()
+                ->unique()
+                ->count();
+            $availableRooms = max(0, $totalRooms - $occupiedCount);
         } catch (\Exception $e) {
             Log::error('Error fetching available rooms', ['error' => $e->getMessage()]);
             $availableRooms = 0;
@@ -580,7 +788,7 @@ class AdminController extends Controller
 
     /**
      * Get expenses from backend API via HotelApiService (same HTTP client as revenue).
-     * This works on deployed app (App Platform) where raw curl may fail.
+     * Returns total, breakdown, and expensesByType (individual records grouped by type).
      */
     private function getExpenses($startDate, $endDate)
     {
@@ -590,6 +798,12 @@ class AdminController extends Controller
             'staff_meals' => 0,
             'salaries' => 0,
             'other' => 0
+        ];
+        $expensesByType = [
+            'grn' => [],
+            'staff_meals' => [],
+            'salaries' => [],
+            'other' => []
         ];
 
         try {
@@ -602,7 +816,9 @@ class AdminController extends Controller
                         'staff_meals' => 0,
                         'salaries' => 0,
                         'other' => 0
-                    ]
+                    ],
+                    'expensesByType' => $expensesByType,
+                    'grnsByNumber' => []
                 ];
             }
             foreach ($expenses as $expense) {
@@ -611,21 +827,58 @@ class AdminController extends Controller
 
                 $totalExpenses += $amount;
 
+                $record = [
+                    'amount' => $amount,
+                    'date' => $expense['expenseDate'] ?? $expense['expense_date'] ?? null,
+                    'referenceId' => $expense['referenceId'] ?? $expense['reference_id'] ?? '',
+                    'description' => $expense['description'] ?? '',
+                ];
+
                 switch ($type) {
                     case 'GRN':
                         $breakdown['grn'] += $amount;
+                        $expensesByType['grn'][] = $record;
                         break;
                     case 'STAFF_MEAL':
                         $breakdown['staff_meals'] += $amount;
+                        $expensesByType['staff_meals'][] = $record;
                         break;
                     case 'SALARY':
                         $breakdown['salaries'] += $amount;
+                        $expensesByType['salaries'][] = $record;
                         break;
                     default:
                         $breakdown['other'] += $amount;
+                        $expensesByType['other'][] = $record;
                         break;
                 }
             }
+
+            // Fetch GRNs for the date range to show line items for GRN expenses
+            $grnsByNumber = [];
+            try {
+                $grns = $this->apiService->getGRNsByDateRange($startDate, $endDate);
+                foreach ($grns as $grn) {
+                    $num = $grn['grnNumber'] ?? $grn['grn_number'] ?? null;
+                    if ($num) {
+                        $grnsByNumber[$num] = $grn;
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Could not fetch GRNs for expense detail: ' . $e->getMessage());
+            }
+
+            return [
+                'total' => round($totalExpenses, 2),
+                'breakdown' => [
+                    'grn' => round($breakdown['grn'], 2),
+                    'staff_meals' => round($breakdown['staff_meals'], 2),
+                    'salaries' => round($breakdown['salaries'], 2),
+                    'other' => round($breakdown['other'], 2)
+                ],
+                'expensesByType' => $expensesByType,
+                'grnsByNumber' => $grnsByNumber
+            ];
         } catch (\Exception $e) {
             Log::warning('Could not fetch expenses from backend API: ' . $e->getMessage());
         }
@@ -637,7 +890,9 @@ class AdminController extends Controller
                 'staff_meals' => round($breakdown['staff_meals'], 2),
                 'salaries' => round($breakdown['salaries'], 2),
                 'other' => round($breakdown['other'], 2)
-            ]
+            ],
+            'expensesByType' => $expensesByType,
+            'grnsByNumber' => []
         ];
     }
 

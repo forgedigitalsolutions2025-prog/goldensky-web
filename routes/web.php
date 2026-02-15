@@ -69,6 +69,8 @@ Route::get('/auth/google/callback', [LoginController::class, 'handleGoogleCallba
 Route::get('/admin/login', [AdminController::class, 'showLogin'])->name('admin.login');
 Route::post('/admin/login', [AdminController::class, 'login'])->name('admin.login.submit');
 Route::get('/admin/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+Route::get('/admin/revenue', [AdminController::class, 'revenue'])->name('admin.revenue');
+Route::get('/admin/expenses', [AdminController::class, 'expenses'])->name('admin.expenses');
 Route::post('/admin/logout', [AdminController::class, 'logout'])->name('admin.logout');
 Route::get('/admin/inventory-requests', [AdminController::class, 'inventoryRequestsIndex'])->name('admin.inventory-requests');
 Route::post('/admin/inventory-requests/{id}/approve', [AdminController::class, 'approveInventoryRequest'])->name('admin.inventory-requests.approve');
