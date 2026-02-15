@@ -287,8 +287,25 @@ class AdminController extends Controller
         }
 
         $period = $request->input('period', 'month');
-        $startDate = $this->getStartDate($period);
-        $endDate = now();
+        $startDateStr = $request->input('start_date');
+        $endDateStr = $request->input('end_date');
+        if ($startDateStr && $endDateStr) {
+            try {
+                $startDate = Carbon::parse($startDateStr)->startOfDay();
+                $endDate = Carbon::parse($endDateStr)->endOfDay();
+                if ($startDate->gt($endDate)) {
+                    $startDate = Carbon::parse($endDateStr)->startOfDay();
+                    $endDate = Carbon::parse($startDateStr)->endOfDay();
+                }
+                $period = 'custom';
+            } catch (\Exception $e) {
+                $startDate = $this->getStartDate($period);
+                $endDate = now();
+            }
+        } else {
+            $startDate = $this->getStartDate($period);
+            $endDate = now();
+        }
 
         $expensesData = $this->getExpenses($startDate, $endDate);
 

@@ -8,14 +8,36 @@
         <p class="text-slate-500 text-sm sm:text-base mt-1">Expense totals and breakdown by type for the selected period</p>
     </div>
 
-    <form method="GET" action="{{ route('admin.expenses') }}" class="mb-6 flex flex-wrap items-center gap-3">
-        <label class="text-slate-700 font-medium text-sm">Period:</label>
-        <select name="period" onchange="this.form.submit()" class="w-full sm:w-auto sm:max-w-[180px] border-slate-300 rounded-lg focus:ring-2 focus:ring-gold-dark/30 focus:border-gold-dark text-sm py-2.5 px-4 bg-white shadow-sm">
-            <option value="day" {{ $period == 'day' ? 'selected' : '' }}>Today</option>
-            <option value="week" {{ $period == 'week' ? 'selected' : '' }}>This Week</option>
-            <option value="month" {{ $period == 'month' ? 'selected' : '' }}>This Month</option>
-            <option value="year" {{ $period == 'year' ? 'selected' : '' }}>This Year</option>
-        </select>
+    <form method="GET" action="{{ route('admin.expenses') }}" class="mb-6 space-y-4">
+        <div class="flex flex-wrap items-center gap-3">
+            <label class="text-slate-700 font-medium text-sm">Period:</label>
+            <select name="period" id="expenses-period-select" class="w-full sm:w-auto sm:max-w-[180px] border-slate-300 rounded-lg focus:ring-2 focus:ring-gold-dark/30 focus:border-gold-dark text-sm py-2.5 px-4 bg-white shadow-sm">
+                <option value="day" {{ $period == 'day' ? 'selected' : '' }}>Today</option>
+                <option value="week" {{ $period == 'week' ? 'selected' : '' }}>This Week</option>
+                <option value="month" {{ $period == 'month' ? 'selected' : '' }}>This Month</option>
+                <option value="year" {{ $period == 'year' ? 'selected' : '' }}>This Year</option>
+                <option value="custom" {{ $period == 'custom' ? 'selected' : '' }}>Custom range</option>
+            </select>
+        </div>
+        <div id="expenses-date-range-inputs" class="flex flex-wrap items-center gap-3 {{ $period == 'custom' ? '' : 'hidden' }}">
+            <label class="text-slate-700 font-medium text-sm">From:</label>
+            <input type="date" name="start_date" value="{{ $startDate->format('Y-m-d') }}" class="border-slate-300 rounded-lg focus:ring-2 focus:ring-gold-dark/30 focus:border-gold-dark text-sm py-2.5 px-4 bg-white shadow-sm">
+            <label class="text-slate-700 font-medium text-sm">To:</label>
+            <input type="date" name="end_date" value="{{ $endDate->format('Y-m-d') }}" class="border-slate-300 rounded-lg focus:ring-2 focus:ring-gold-dark/30 focus:border-gold-dark text-sm py-2.5 px-4 bg-white shadow-sm">
+            <button type="submit" class="px-4 py-2.5 bg-gold-dark text-white rounded-lg hover:bg-gold-dark/90 font-medium text-sm transition">Apply</button>
+        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                var sel = document.getElementById('expenses-period-select');
+                var range = document.getElementById('expenses-date-range-inputs');
+                if (sel && range) {
+                    sel.addEventListener('change', function() {
+                        if (this.value === 'custom') range.classList.remove('hidden');
+                        else { range.classList.add('hidden'); window.location = '{{ route('admin.expenses') }}?period=' + encodeURIComponent(this.value); }
+                    });
+                }
+            });
+        </script>
     </form>
 
     <div class="bg-white rounded-lg border border-slate-200 p-4 sm:p-6 mb-6 sm:mb-8">
